@@ -33,6 +33,13 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_TASKS: int = 5
     SCREENSHOT_DIR: str = "screenshots"
 
+    # Desktop Automation Limits
+    DESKTOP_APP_TIMEOUT: float = 15.0
+    DESKTOP_WINDOW_TIMEOUT: float = 3.0
+    DESKTOP_INPUT_TIMEOUT: float = 2.0
+    DESKTOP_MAX_RETRIES: int = 3
+    DESKTOP_VISION_ENABLED: bool = False
+
     # Voice Engine & Audio
     VOICE_ENABLED: bool = True
     WAKE_WORD: str = "Shivani"

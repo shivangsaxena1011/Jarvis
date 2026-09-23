@@ -18,17 +18,42 @@ from core.orchestrator.emergency import EmergencyStop
 from core.context.normalizer import HinglishNormalizer, SessionContext
 from core.planner.planner import TaskPlanner
 from core.executor.executor import TaskExecutor
-
-# System & Computer Tools
-from tools.computer.system_tools import (
-    ScreenshotTool,
-    ActiveWindowTool,
-    GetActiveWindowTool,
-    ListProcessesTool,
+from tools.desktop.os import OperatingSystemAdapter, get_os_adapter
+from tools.desktop import (
+    ApplicationManager,
+    WindowManager,
+    InputController,
+    ScreenCapture,
+    ClipboardManager,
     OpenAppTool,
     CloseAppTool,
-    ListWindowsTool,
+    FocusAppTool,
+    ListAppsTool,
+    ActiveWindowTool,
+    WindowListTool,
+    WindowFocusTool,
+    WindowMinimizeTool,
+    WindowMaximizeTool,
+    WindowRestoreTool,
+    WindowCloseTool,
+    MouseMoveTool,
+    ClickTool,
+    DoubleClickTool,
+    RightClickTool,
+    MouseDragTool,
+    MouseScrollTool,
+    GetCursorPosTool,
+    TypeTool,
+    PressKeyTool,
+    HotkeyTool,
+    ClipboardReadTool,
+    ClipboardWriteTool,
+    ClipboardClearTool,
+    ScreenshotTool,
+    OpenFolderTool,
+    FindFilesTool,
 )
+from agents.computer import ComputerAgent, CurrentUIContext
 
 # Filesystem Foundation Tools
 from tools.filesystem.file_tools import (
@@ -52,9 +77,11 @@ class Orchestrator:
         llm_provider: Optional[LLMProvider] = None,
         permission_engine: Optional[PermissionEngine] = None,
         audit_logger: Optional[AuditLogger] = None,
-        event_bus: Optional[EventBus] = None
+        event_bus: Optional[EventBus] = None,
+        os_adapter: Optional[OperatingSystemAdapter] = None,
     ):
         self.settings = settings or get_settings()
+        self.os_adapter = os_adapter or get_os_adapter()
         self.events = event_bus or get_event_bus()
         self.llm = llm_provider or create_provider(self.settings)
         self.permissions = permission_engine or PermissionEngine(policy=self.settings.SECURITY_POLICY)
@@ -63,24 +90,57 @@ class Orchestrator:
         self.tools = ToolRegistry(permission_engine=self.permissions, audit_logger=self.audit)
         self.emergency = EmergencyStop()
         self.context = SessionContext()
+        self.ui_context = CurrentUIContext()
+        self.computer_agent = ComputerAgent(adapter=self.os_adapter, context=self.ui_context)
         
         self.planner = TaskPlanner(self.llm, self.tools)
         self.executor = TaskExecutor(self.tools, self.emergency, event_bus=self.events)
 
         self._tasks: Dict[str, Task] = {}
 
-        # Auto-register Phase 1 foundation tools
+        # Auto-register Phase 1 & Phase 3 tools
         self._register_default_tools()
 
     def _register_default_tools(self) -> None:
+        app_mgr = ApplicationManager(self.os_adapter)
+        win_mgr = WindowManager(self.os_adapter)
+        inp_ctrl = InputController(self.os_adapter)
+        scr_cap = ScreenCapture(self.os_adapter)
+        clip_mgr = ClipboardManager(self.os_adapter)
+
         default_tools = [
-            ScreenshotTool(),
-            ActiveWindowTool(),
-            GetActiveWindowTool(),
-            ListWindowsTool(),
-            ListProcessesTool(),
-            OpenAppTool(),
-            CloseAppTool(),
+            # Desktop application & window tools
+            OpenAppTool(app_manager=app_mgr),
+            CloseAppTool(app_manager=app_mgr),
+            FocusAppTool(window_manager=win_mgr),
+            ListAppsTool(app_manager=app_mgr),
+            ActiveWindowTool(window_manager=win_mgr),
+            WindowListTool(window_manager=win_mgr),
+            WindowFocusTool(window_manager=win_mgr),
+            WindowMinimizeTool(window_manager=win_mgr),
+            WindowMaximizeTool(window_manager=win_mgr),
+            WindowRestoreTool(window_manager=win_mgr),
+            WindowCloseTool(window_manager=win_mgr),
+            # Input tools
+            MouseMoveTool(input_controller=inp_ctrl),
+            ClickTool(input_controller=inp_ctrl),
+            DoubleClickTool(input_controller=inp_ctrl),
+            RightClickTool(input_controller=inp_ctrl),
+            MouseDragTool(input_controller=inp_ctrl),
+            MouseScrollTool(input_controller=inp_ctrl),
+            GetCursorPosTool(input_controller=inp_ctrl),
+            TypeTool(input_controller=inp_ctrl),
+            PressKeyTool(input_controller=inp_ctrl),
+            HotkeyTool(input_controller=inp_ctrl),
+            # Clipboard tools
+            ClipboardReadTool(clipboard_manager=clip_mgr),
+            ClipboardWriteTool(clipboard_manager=clip_mgr),
+            ClipboardClearTool(clipboard_manager=clip_mgr),
+            # Screen capture & file explorer tools
+            ScreenshotTool(screen_capture=scr_cap),
+            OpenFolderTool(),
+            FindFilesTool(),
+            # Filesystem tools
             ListDirectoryTool(),
             LegacyListDirTool(),
             SearchFilesTool(),
@@ -88,6 +148,7 @@ class Orchestrator:
             CreateDirectoryTool(),
             ReadFileTool(),
             WriteFileTool(),
+            # Terminal tool
             TerminalExecuteTool(),
         ]
         for t in default_tools:

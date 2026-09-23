@@ -14,17 +14,24 @@ HINGLISH_ACTION_MAP = [
     # Play / Media (specific first)
     (r"\b(?:gana chalao|gana chala do|gana bajao|play karo)\b", "play song"),
     (r"\bgana\b", "song"),
+    # Minimize / Maximize / Restore / Switch (Window Management)
+    (r"\b(?:ko minimize karo|minimize karo|chhota karo)\b", "minimize"),
+    (r"\b(?:ko maximize karo|maximize karo|bada karo)\b", "maximize"),
+    (r"\b(?:ko restore karo|restore karo)\b", "restore"),
+    (r"\b(?:pe wapas jao|par wapas jao|pe jao|par jao|pe switch karo)\b", "switch to"),
+    # Screenshot / Vision
+    (r"\b(?:screenshot lo|screenshot le lo|screen capture karo|photo lo)\b", "take screenshot"),
     # Open / Launch
     (r"\b(?:kholo|khol|chalao|chala do|start karo|shuru karo|launch karo)\b", "open"),
     # Close / Exit
     (r"\b(?:band karo|hata do|close karo|exit karo)\b", "close"),
-    # Check / Inspect / Search
-    (r"\b(?:check karo|dekho|dhoondo|search karo|talaash karo)\b", "search and check"),
+    # Check / Inspect / Search / Find
+    (r"\b(?:check karo|dekho|dhoondo|dhundo|search karo|talaash karo|find karo)\b", "search and check"),
     # Clean / Delete
     (r"\b(?:clean karo|saaf karo|delete karo|mita do)\b", "clean and delete"),
-    # Create / Write / Post
+    # Create / Write / Type
+    (r"\b(?:type karo)\b", "type"),
     (r"\b(?:banao|likho|post karo|ready karo|draft karo)\b", "create and draft"),
-
 ]
 
 # Deictic referent patterns (pointing to current context)

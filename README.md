@@ -14,7 +14,13 @@ SHIVANI is a voice-first, autonomous personal AI operating layer designed to und
   - `SAFE`: Non-destructive read and observation actions run automatically.
   - `SENSITIVE`: File modifications, git commits, and shell operations require policy approval.
   - `CRITICAL`: Destructive operations (file deletions, system process termination, irreversible disk changes) strictly require user confirmation.
-- **Bilingual Intent & Hinglish Normalizer**: Understands natural conversational commands such as *"Shivani, YouTube kholo"*, *"ye gana chala do"*, and resolves contextual references (*"ye wala"*, *"isko"*).
+- **Autonomous Computer Use Agent & Windows 11 Desktop Control**:
+  - Operates Windows 11 applications (*"Shivani, open VS Code"*, *"Chrome kholo"*), multi-tier app discovery (Registry App Paths, Start Menu `.lnk`, PATH).
+  - Window management: minimize (*"Chrome ko minimize karo"*), maximize, restore, focus/switch (*"VS Code pe wapas jao"*), and close.
+  - Safe mouse movement, clicks, double/right-click, drag, scroll, and typing with **Input Safety Validation** (strictly verifies active target window focus before interacting).
+  - File Explorer navigation (*"Downloads folder kholo"*) and direct pattern search (*"find my PDF files"*).
+  - Screen capture (full desktop, active window, region) with `ScreenObserver` generating structured `DesktopObservation` models ready for vision.
+  - Safe clipboard control (`clipboard.read`, `write`, `clear`) with zero secret leakage to audit logs.
 - **Voice Pipeline & Wake Word ("Shivani")**:
   - Local wake word detection with RMS energy and phonetic matching.
   - Speech-to-Text via `faster-whisper` (CPU/int8 local inference) with automatic Hinglish/Hindi/English audio transcription.
@@ -33,6 +39,8 @@ SHIVANI is a voice-first, autonomous personal AI operating layer designed to und
 
 ```
 shivanI/
+├── agents/
+│   └── computer/            # ComputerAgent, ScreenObserver, CurrentUIContext, BrowserStub
 ├── apps/
 │   ├── desktop/             # FastAPI backend & futuristic Web Dashboard
 │   └── mobile/              # Android companion specs & bridge
@@ -49,7 +57,8 @@ shivanI/
 ├── tools/
 │   ├── base.py              # BaseTool contract & ToolResult
 │   ├── registry.py          # Central registry with timeout & verification
-│   ├── computer/            # Screenshot, active window, process, app launch
+│   ├── desktop/             # OS abstraction (Windows 11), WindowManager, InputController
+│   ├── computer/            # Foundation computer & process tools
 │   ├── filesystem/          # List, read, write, safe delete
 │   └── terminal/            # Sandboxed shell command execution
 ├── voice/                   # Wake word, faster-whisper STT, edge-tts TTS, pipeline
@@ -134,6 +143,24 @@ Open **[http://127.0.0.1:8000](http://127.0.0.1:8000)** in your browser to acces
 - **Voice Interruption**: Click **STOP ALL** or say *"Shivani stop"* to immediately cut off speech and abort executing actions.
 - **Voice Status**: Query `GET /api/voice/status` to view the real-time audio state (`IDLE`, `LISTENING`, `PROCESSING`, `SPEAKING`).
 
+### 5. Windows Desktop Operation Examples
+```powershell
+# Open and verify applications
+.venv\Scripts\python.exe main.py --task "Shivani, open VS Code"
+.venv\Scripts\python.exe main.py --task "Shivani, open Chrome"
+
+# Window management
+.venv\Scripts\python.exe main.py --task "Shivani, minimize Chrome"
+.venv\Scripts\python.exe main.py --task "Shivani, switch to VS Code"
+
+# File Explorer & documents
+.venv\Scripts\python.exe main.py --task "Shivani, open my Downloads folder"
+.venv\Scripts\python.exe main.py --task "Shivani, find my PDF files"
+
+# Screen observation
+.venv\Scripts\python.exe main.py --task "Shivani, take a screenshot"
+```
+
 ---
 
 ## Running Automated Tests
@@ -148,6 +175,7 @@ Run the complete test suite:
 ## Documentation
 
 - [Architecture Overview](docs/ARCHITECTURE.md)
+- [Computer Use Agent & Windows Control](docs/COMPUTER_AGENT.md)
 - [Agent Specifications](docs/AGENTS.md)
 - [Tool System & Contracts](docs/TOOLS.md)
 - [Security & Sandbox Engine](docs/SECURITY.md)

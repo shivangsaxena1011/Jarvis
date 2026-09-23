@@ -53,6 +53,160 @@ class MockProvider(LLMProvider):
             if key in query:
                 return plan
 
+        # Minimize window task
+        if "minimize" in query:
+            target_app = "chrome" if "chrome" in query else ("vs code" if "code" in query else None)
+            return TaskPlan(
+                goal=user_query,
+                rationale="Minimize application window",
+                steps=[
+                    PlanStep(
+                        id="1",
+                        tool="window.minimize",
+                        action=f"Minimize {target_app or 'active'} window",
+                        arguments={"title_or_handle": target_app} if target_app else {},
+                        expected_outcome="Window minimized"
+                    )
+                ]
+            )
+
+        # Maximize window task
+        if "maximize" in query:
+            target_app = "chrome" if "chrome" in query else ("vs code" if "code" in query else None)
+            return TaskPlan(
+                goal=user_query,
+                rationale="Maximize application window",
+                steps=[
+                    PlanStep(
+                        id="1",
+                        tool="window.maximize",
+                        action=f"Maximize {target_app or 'active'} window",
+                        arguments={"title_or_handle": target_app} if target_app else {},
+                        expected_outcome="Window maximized"
+                    )
+                ]
+            )
+
+        # Switch to window task
+        if "switch" in query or "wapas jao" in query or "focus" in query:
+            target = "Visual Studio Code" if ("code" in query or "vs" in query) else ("Chrome" if "chrome" in query else "Notepad")
+            return TaskPlan(
+                goal=user_query,
+                rationale=f"Switch focus to {target}",
+                steps=[
+                    PlanStep(
+                        id="1",
+                        tool="window.focus",
+                        action=f"Focus {target} window",
+                        arguments={"title_or_handle": target},
+                        expected_outcome=f"{target} window brought to foreground"
+                    )
+                ]
+            )
+
+        # Close window / app task
+        if "close" in query or "band karo" in query:
+            target = "chrome" if "chrome" in query else ("code" if "code" in query else None)
+            if target:
+                return TaskPlan(
+                    goal=user_query,
+                    rationale=f"Close {target} application",
+                    steps=[
+                        PlanStep(
+                            id="1",
+                            tool="computer.close_app",
+                            action=f"Close {target}",
+                            arguments={"app_name": target},
+                            expected_outcome=f"{target} closed"
+                        )
+                    ]
+                )
+            else:
+                return TaskPlan(
+                    goal=user_query,
+                    rationale="Close active window",
+                    steps=[
+                        PlanStep(
+                            id="1",
+                            tool="window.close",
+                            action="Close active window",
+                            arguments={},
+                            expected_outcome="Active window closed"
+                        )
+                    ]
+                )
+
+        # VS Code demo task
+        if "vs code" in query or "code" in query:
+            return TaskPlan(
+                goal=user_query,
+                rationale="Launch Visual Studio Code and verify window",
+                steps=[
+                    PlanStep(
+                        id="1",
+                        tool="computer.open_app",
+                        action="Launch Visual Studio Code",
+                        arguments={"app_name": "code"},
+                        expected_outcome="VS Code launched and verified"
+                    ),
+                    PlanStep(
+                        id="2",
+                        tool="computer.active_window",
+                        action="Verify active window belongs to VS Code",
+                        arguments={},
+                        expected_outcome="Active window is VS Code"
+                    )
+                ]
+            )
+
+        # Downloads folder task
+        if "downloads" in query or "download" in query:
+            return TaskPlan(
+                goal=user_query,
+                rationale="Open Downloads directory in File Explorer",
+                steps=[
+                    PlanStep(
+                        id="1",
+                        tool="computer.open_folder",
+                        action="Open Downloads folder",
+                        arguments={"folder_name": "downloads"},
+                        expected_outcome="Downloads folder opened in Explorer"
+                    )
+                ]
+            )
+
+        # Find PDF files task
+        if "pdf" in query:
+            return TaskPlan(
+                goal=user_query,
+                rationale="Search filesystem for PDF files",
+                steps=[
+                    PlanStep(
+                        id="1",
+                        tool="computer.find_files",
+                        action="Find PDF files",
+                        arguments={"pattern": "*.pdf", "limit": 10},
+                        expected_outcome="List of PDF files found"
+                    )
+                ]
+            )
+
+        # Type text task
+        if "type" in query or "likho" in query:
+            return TaskPlan(
+                goal=user_query,
+                rationale="Type text into active focus",
+                steps=[
+                    PlanStep(
+                        id="1",
+                        tool="computer.type",
+                        action="Type text",
+                        arguments={"text": "Hello from SHIVANI!"},
+                        expected_outcome="Text typed successfully"
+                    )
+                ]
+            )
+
         # Chrome demo task
         if "chrome" in query:
             return TaskPlan(
