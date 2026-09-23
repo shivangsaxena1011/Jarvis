@@ -251,28 +251,126 @@ async function resolveApproval(requestId, approved) {
   }
 }
 
-// Stop Button
-emergencyStopBtn.addEventListener('click', async () => {
+// Voice & Push-to-Talk (PTT) Audio Recorder
+let mediaRecorder = null;
+let audioChunks = [];
+let activePlaybackAudio = null;
+
+async function startRecording() {
   try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) {
+        audioChunks.push(e.data);
+      }
+    };
+
+    mediaRecorder.onstop = async () => {
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      stream.getTracks().forEach(track => track.stop());
+      await sendVoiceAudio(audioBlob);
+    };
+
+    mediaRecorder.start();
+    isListening = true;
+    startListeningBtn.classList.add('listening-active');
+    startListeningBtn.innerHTML = `● Listening... (Click to Send)`;
+    setAgentState('LISTENING', '#38bdf8');
+  } catch (err) {
+    console.error('Microphone access denied or unavailable', err);
+    alert('Microphone access unavailable or blocked: ' + err.message);
+    isListening = false;
+    setAgentState('IDLE', '#10b981');
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+  isListening = false;
+  startListeningBtn.classList.remove('listening-active');
+  startListeningBtn.innerHTML = `Start Listening`;
+}
+
+async function sendVoiceAudio(blob) {
+  setAgentState('PROCESSING...', '#8b5cf6');
+  currentStepLabel.textContent = 'Transcribing speech & analyzing intent...';
+
+  try {
+    const res = await fetch('/api/voice/interact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'audio/webm' },
+      body: blob
+    });
+    const result = await res.json();
+
+    if (result.transcribed_text) {
+      addTimelineItem('VOICE INPUT', { message: `Transcribed: "${result.transcribed_text}" (${result.language})` });
+    }
+
+    if (result.task) {
+      renderActiveTask(result.task);
+    }
+
+    // Play TTS audio response if provided
+    if (result.tts && result.tts.audio_path) {
+      const filename = result.tts.audio_path.split(/[\\/]/).pop();
+      playVoiceResponse(`/api/voice/audio/${filename}`);
+    } else {
+      setAgentState('IDLE', '#10b981');
+    }
+  } catch (err) {
+    console.error('Voice interaction error', err);
+    setAgentState('ERROR', '#ef4444');
+    currentStepLabel.textContent = 'Voice processing error: ' + err.message;
+  }
+}
+
+function playVoiceResponse(audioUrl) {
+  if (activePlaybackAudio) {
+    activePlaybackAudio.pause();
+  }
+  setAgentState('SPEAKING', '#06b6d4');
+  activePlaybackAudio = new Audio(audioUrl);
+  activePlaybackAudio.onended = () => {
+    setAgentState('IDLE', '#10b981');
+  };
+  activePlaybackAudio.onerror = () => {
+    setAgentState('IDLE', '#10b981');
+  };
+  activePlaybackAudio.play().catch(e => console.log('Autoplay restriction:', e));
+}
+
+// Stop Button (Aborts Task + Interrupts Speech)
+emergencyStopBtn.addEventListener('click', async () => {
+  if (activePlaybackAudio) {
+    activePlaybackAudio.pause();
+    activePlaybackAudio = null;
+  }
+  if (isListening) {
+    stopRecording();
+  }
+  try {
+    await fetch('/api/voice/stop', { method: 'POST' });
     await fetch('/stop', { method: 'POST' });
   } catch (err) {
     console.error('Failed to trigger stop', err);
   }
 });
 
-// Start Listening Button
+// Start Listening / Push-To-Talk Button Toggle
 startListeningBtn.addEventListener('click', () => {
-  isListening = !isListening;
-  if (isListening) {
-    startListeningBtn.classList.add('listening-active');
-    startListeningBtn.innerHTML = `● Listening ("Shivani")`;
-    setAgentState('LISTENING', '#38bdf8');
+  if (!isListening) {
+    startRecording();
   } else {
-    startListeningBtn.classList.remove('listening-active');
-    startListeningBtn.innerHTML = `Start Listening`;
-    setAgentState('IDLE', '#10b981');
+    stopRecording();
   }
 });
+
 
 // Settings Button
 settingsBtn.addEventListener('click', () => {

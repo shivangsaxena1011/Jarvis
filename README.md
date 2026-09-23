@@ -15,6 +15,13 @@ SHIVANI is a voice-first, autonomous personal AI operating layer designed to und
   - `SENSITIVE`: File modifications, git commits, and shell operations require policy approval.
   - `CRITICAL`: Destructive operations (file deletions, system process termination, irreversible disk changes) strictly require user confirmation.
 - **Bilingual Intent & Hinglish Normalizer**: Understands natural conversational commands such as *"Shivani, YouTube kholo"*, *"ye gana chala do"*, and resolves contextual references (*"ye wala"*, *"isko"*).
+- **Voice Pipeline & Wake Word ("Shivani")**:
+  - Local wake word detection with RMS energy and phonetic matching.
+  - Speech-to-Text via `faster-whisper` (CPU/int8 local inference) with automatic Hinglish/Hindi/English audio transcription.
+  - Text-to-Speech via `edge-tts` with high-clarity feminine Indian voice (`hi-IN-SwaraNeural`) and local `pyttsx3` fallback.
+  - Instant speech cutoff (<50ms) on `"Shivani stop"` voice interruption.
+  - Multi-turn conversational context tracking previous subjects, applications, and clarification queries.
+  - In-browser Push-to-Talk (PTT) with animated soundwave visualizer and live audio response playback.
 - **Extensible LLM Provider Layer**: Pluggable drivers for Google Gemini (`gemini-2.5-flash`), OpenAI-compatible endpoints, and a deterministic offline Mock provider.
 - **Redacting Audit Logger**: Logs every task, step, and verification in `audit.jsonl` with automatic masking of secrets, API keys, and passwords.
 - **Emergency Stop System**: Immediate task abort via `"Shivani stop"` voice command, REST API, or the Desktop Dashboard **STOP ALL** button.
@@ -45,6 +52,7 @@ shivanI/
 │   ├── computer/            # Screenshot, active window, process, app launch
 │   ├── filesystem/          # List, read, write, safe delete
 │   └── terminal/            # Sandboxed shell command execution
+├── voice/                   # Wake word, faster-whisper STT, edge-tts TTS, pipeline
 ├── tests/                   # Full pytest automated test suite
 ├── docs/                    # Complete architecture, agents, tools & security docs
 ├── .env.example             # Configuration template
@@ -88,7 +96,18 @@ GEMINI_API_KEY=your_gemini_api_key_here
 LLM_MODEL=gemini-2.5-flash
 ```
 
-For offline testing without API keys, leave `LLM_PROVIDER=mock`.
+To configure Voice (Wake word, STT & TTS):
+```env
+VOICE_ENABLED=true
+WAKE_WORD=Shivani
+STT_PROVIDER=whisper         # faster-whisper on CPU/int8
+STT_MODEL=tiny               # tiny, base, or small
+TTS_PROVIDER=edge_tts        # edge_tts or pyttsx3
+TTS_VOICE=hi-IN-SwaraNeural  # Clear feminine Indian voice
+VOICE_CONFIDENCE_THRESHOLD=0.65
+```
+
+For offline testing without API keys or microphones, leave `LLM_PROVIDER=mock`, `STT_PROVIDER=mock`, and `TTS_PROVIDER=mock`.
 
 ---
 
@@ -109,6 +128,11 @@ For offline testing without API keys, leave `LLM_PROVIDER=mock`.
 .venv\Scripts\python.exe main.py
 ```
 Open **[http://127.0.0.1:8000](http://127.0.0.1:8000)** in your browser to access the live dashboard.
+
+### 4. Interactive Voice Control
+- **Push-to-Talk (PTT)**: Click and hold the microphone icon in the web dashboard header to speak (e.g., *"Shivani, YouTube kholo"*). Release to process and hear SHIVANI's spoken reply.
+- **Voice Interruption**: Click **STOP ALL** or say *"Shivani stop"* to immediately cut off speech and abort executing actions.
+- **Voice Status**: Query `GET /api/voice/status` to view the real-time audio state (`IDLE`, `LISTENING`, `PROCESSING`, `SPEAKING`).
 
 ---
 

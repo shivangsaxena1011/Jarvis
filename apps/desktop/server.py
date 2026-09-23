@@ -16,12 +16,17 @@ from pydantic import BaseModel, Field
 from core.config import get_settings
 from core.orchestrator.orchestrator import Orchestrator
 from core.events.bus import Event, get_event_bus
+from voice.pipeline import VoicePipeline
+from voice.state import get_audio_state_manager
 
 settings = get_settings()
 orchestrator = Orchestrator(settings=settings)
 event_bus = get_event_bus()
+audio_state_mgr = get_audio_state_manager()
+voice_pipeline = VoicePipeline(orchestrator=orchestrator, settings=settings)
 
 app = FastAPI(title="SHIVANI Desktop Agent", version="0.1.0")
+
 
 # WebSocket connection manager
 class ConnectionManager:
@@ -186,7 +191,75 @@ async def get_audit_events(limit: int = 50):
     return orchestrator.audit.get_recent_events(limit=limit)
 
 
+# ==============================================================================
+# VOICE & AUDIO PIPELINE ENDPOINTS
+# ==============================================================================
+
+@app.get("/api/voice/status")
+async def get_voice_status():
+    return {
+        "audio_state": audio_state_mgr.current_state.value,
+        "wake_word": settings.WAKE_WORD,
+        "stt_provider": settings.STT_PROVIDER,
+        "stt_model": settings.STT_MODEL,
+        "tts_provider": settings.TTS_PROVIDER,
+        "tts_voice": settings.TTS_VOICE,
+        "is_speaking": voice_pipeline.tts.is_speaking(),
+    }
+
+
+@app.post("/api/voice/interact")
+async def voice_interact(request: Request):
+    """
+    Receives raw audio recorded by desktop client or browser MediaRecorder,
+    processes via STT -> Orchestrator -> TTS, and returns execution result.
+    """
+    audio_bytes = await request.body()
+    if not audio_bytes or len(audio_bytes) < 100:
+        raise HTTPException(status_code=400, detail="Empty or invalid audio stream payload")
+
+    result = await voice_pipeline.process_spoken_instruction(
+        audio_data=audio_bytes,
+        sample_rate=16000,
+        play_tts_response=True
+    )
+    return result
+
+
+@app.post("/api/voice/stop")
+async def voice_stop():
+    """Immediately halts any playing TTS speech and aborts active task."""
+    voice_pipeline.interrupt()
+    return {"success": True, "interrupted": True}
+
+
+class TTSRequest(BaseModel):
+    text: str
+
+
+@app.post("/api/voice/tts")
+async def voice_tts(req: TTSRequest):
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="Text cannot be empty")
+    res = await voice_pipeline.tts.speak(req.text, play_audio=False)
+    audio_filename = Path(res.audio_path).name if res.audio_path else None
+    return {
+        "text": res.text,
+        "audio_url": f"/api/voice/audio/{audio_filename}" if audio_filename else None,
+        "duration_seconds": res.duration_seconds
+    }
+
+
+@app.get("/api/voice/audio/{filename}")
+async def get_voice_audio(filename: str):
+    file_path = Path(settings.AUDIO_OUTPUT_DIR) / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Audio file not found")
+    return FileResponse(file_path, media_type="audio/mpeg")
+
+
 @app.websocket("/ws/events")
+
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:

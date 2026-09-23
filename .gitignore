@@ -30,3 +30,4 @@ htmlcov/
 *.log
 audit.jsonl
 screenshots/
+audio_cache/

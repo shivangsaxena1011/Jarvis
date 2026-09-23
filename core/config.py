@@ -33,13 +33,19 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_TASKS: int = 5
     SCREENSHOT_DIR: str = "screenshots"
 
-    # Voice Engine
-    VOICE_ENABLED: bool = False
+    # Voice Engine & Audio
+    VOICE_ENABLED: bool = True
     WAKE_WORD: str = "Shivani"
-    STT_PROVIDER: Literal["mock", "whisper", "local"] = "mock"
-    TTS_PROVIDER: Literal["mock", "edge_tts", "piper"] = "mock"
+    STT_PROVIDER: Literal["mock", "whisper", "local"] = "whisper"
+    STT_MODEL: str = "tiny"
+    TTS_PROVIDER: Literal["mock", "edge_tts", "pyttsx3", "piper"] = "edge_tts"
+    TTS_VOICE: str = "hi-IN-SwaraNeural"
+    TTS_RATE: str = "+0%"
+    CONFIDENCE_THRESHOLD: float = 0.65
+    AUDIO_OUTPUT_DIR: str = "audio_cache"
 
     # Browser
+
     BROWSER_HEADLESS: bool = False
     PREFERRED_BROWSER: Literal["chromium", "chrome", "brave", "edge"] = "chromium"
 
