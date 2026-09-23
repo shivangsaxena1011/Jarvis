@@ -1,16 +1,24 @@
 """
 SHIVANI Sandbox & Command Validator
 Inspects commands and file paths for security threats, destructive operations,
-and path traversal attacks.
+and path traversal attacks using a 4-tier classification: SAFE, WARNING, DANGEROUS, BLOCKED.
 """
 
+from enum import Enum
 import re
 from pathlib import Path
 from typing import Tuple
 from security.permissions.engine import RiskLevel
 
 
-# Patterns that are strictly blocked and cannot be run under any circumstance
+class CommandRisk(str, Enum):
+    SAFE = "SAFE"
+    WARNING = "WARNING"
+    DANGEROUS = "DANGEROUS"
+    BLOCKED = "BLOCKED"
+
+
+# Patterns strictly blocked under any circumstance
 BLOCKED_PATTERNS = [
     r"\bformat\s+[a-zA-Z]:",
     r"\bdiskpart\b",
@@ -24,8 +32,8 @@ BLOCKED_PATTERNS = [
     r"%0\|%0",                                   # batch fork bomb
 ]
 
-# Patterns that require CRITICAL permission level
-CRITICAL_PATTERNS = [
+# Patterns that are DANGEROUS (deletions, process termination, remote script execution)
+DANGEROUS_PATTERNS = [
     r"\bdel\b",
     r"\brmdir\b",
     r"\brm\s+",
@@ -38,8 +46,8 @@ CRITICAL_PATTERNS = [
     r"\bwget.*\|\s*(?:bash|sh|powershell|cmd)",
 ]
 
-# Patterns that are SENSITIVE (normal development / build commands)
-SENSITIVE_PATTERNS = [
+# Patterns that are WARNING (active modifications / builds / commits)
+WARNING_PATTERNS = [
     r"\bpython\b",
     r"\bpython3\b",
     r"\buv\b",
@@ -70,37 +78,48 @@ class CommandValidator:
         return False, ""
 
     @staticmethod
-    def classify_risk(command: str) -> RiskLevel:
+    def classify_command(command: str) -> CommandRisk:
+        """Classifies command into SAFE, WARNING, DANGEROUS, or BLOCKED."""
         cmd_clean = command.strip()
         
-        # Check blocked first
+        # 1. BLOCKED check
         blocked, _ = CommandValidator.is_blocked(cmd_clean)
         if blocked:
-            return RiskLevel.CRITICAL
+            return CommandRisk.BLOCKED
 
-        # Check critical
-        for pattern in CRITICAL_PATTERNS:
+        # 2. DANGEROUS check
+        for pattern in DANGEROUS_PATTERNS:
             if re.search(pattern, cmd_clean, re.IGNORECASE):
-                return RiskLevel.CRITICAL
+                return CommandRisk.DANGEROUS
 
-        # Check safe
+        # 3. SAFE check
         for pattern in SAFE_PATTERNS:
             if re.search(pattern, cmd_clean, re.IGNORECASE):
-                return RiskLevel.SAFE
+                return CommandRisk.SAFE
 
-        # Default for shell execution is SENSITIVE
-        return RiskLevel.SENSITIVE
+        # 4. WARNING check (default for mutating commands)
+        for pattern in WARNING_PATTERNS:
+            if re.search(pattern, cmd_clean, re.IGNORECASE):
+                return CommandRisk.WARNING
+
+        return CommandRisk.WARNING
+
+    @staticmethod
+    def classify_risk(command: str) -> RiskLevel:
+        """Translates command risk into permission RiskLevel."""
+        c_risk = CommandValidator.classify_command(command)
+        if c_risk in (CommandRisk.BLOCKED, CommandRisk.DANGEROUS):
+            return RiskLevel.CRITICAL
+        elif c_risk == CommandRisk.WARNING:
+            return RiskLevel.SENSITIVE
+        return RiskLevel.SAFE
 
     @staticmethod
     def validate_path_safety(base_dir: Path, target_path: Path) -> Tuple[bool, str]:
-        """
-        Validates that target_path does not escape outside base_dir (path traversal check).
-        """
+        """Validates that target_path does not escape outside base_dir (path traversal check)."""
         try:
             resolved_base = base_dir.resolve()
             resolved_target = target_path.resolve()
-            
-            # Check if resolved target is within base
             if not str(resolved_target).startswith(str(resolved_base)):
                 return False, f"Path traversal detected: {target_path} escapes workspace {base_dir}"
             return True, ""

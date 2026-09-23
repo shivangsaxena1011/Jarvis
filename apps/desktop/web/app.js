@@ -7,6 +7,9 @@ const commandForm = document.getElementById('commandForm');
 const commandInput = document.getElementById('commandInput');
 const sendBtn = document.getElementById('sendBtn');
 const emergencyStopBtn = document.getElementById('emergencyStopBtn');
+const startListeningBtn = document.getElementById('startListeningBtn');
+const settingsBtn = document.getElementById('settingsBtn');
+const taskHistoryBtn = document.getElementById('taskHistoryBtn');
 
 const noActiveTaskMsg = document.getElementById('noActiveTaskMsg');
 const taskDetailsContent = document.getElementById('taskDetailsContent');
@@ -24,12 +27,14 @@ const rejectBtn = document.getElementById('rejectBtn');
 
 const timelineList = document.getElementById('timelineList');
 const toolCount = document.getElementById('toolCount');
+const healthStatus = document.getElementById('healthStatus');
 const providerBadge = document.getElementById('providerBadge');
 const envName = document.getElementById('envName');
 
 let currentActiveTaskId = null;
 let currentPendingApprovalId = null;
 let ws = null;
+let isListening = false;
 
 // Initialize WebSocket
 function connectWebSocket() {
@@ -52,30 +57,46 @@ function connectWebSocket() {
   ws.onmessage = (event) => {
     try {
       const payload = JSON.parse(event.data);
-      handleServerEvent(payload.event, payload.data);
+      handleServerEvent(payload.event, payload.data, payload.task_id);
     } catch (err) {
       console.error('Failed to parse WS message', err);
     }
   };
 }
 
-function handleServerEvent(eventType, data) {
+function handleServerEvent(eventType, data, taskId) {
   addTimelineItem(eventType, data);
 
-  if (eventType === 'task_created' || eventType === 'task_updated') {
+  if (eventType === 'TASK_CREATED' || eventType === 'TASK_PLANNED') {
     const task = data.task;
     renderActiveTask(task);
-  } else if (eventType === 'step_progress') {
-    currentStepLabel.textContent = data.message;
-  } else if (eventType === 'task_completed') {
-    const task = data.task;
-    renderActiveTask(task);
-    setTimeout(() => {
-      checkPendingApprovals();
-    }, 500);
-  } else if (eventType === 'emergency_stop') {
-    setAgentState('CANCELLED / STOPPED', '#ef4444');
-    currentStepLabel.textContent = `Emergency stop aborted ${data.cancelled_count} task(s).`;
+  } else if (eventType === 'TASK_STARTED' || eventType === 'TOOL_STARTED') {
+    if (data.message) {
+      currentStepLabel.textContent = data.message;
+    } else if (data.action) {
+      currentStepLabel.textContent = `Executing: ${data.action} [${data.tool}]`;
+    }
+    setAgentState('WORKING...', '#8b5cf6');
+  } else if (eventType === 'TASK_VERIFYING') {
+    currentStepLabel.textContent = `Verifying environment side-effects...`;
+    setAgentState('VERIFYING...', '#06b6d4');
+  } else if (eventType === 'TASK_COMPLETED') {
+    if (data.result) {
+      currentStepLabel.textContent = data.result;
+    }
+    setAgentState('IDLE / COMPLETED', '#10b981');
+    taskProgressBar.style.width = '100%';
+    taskProgressBar.style.background = '#10b981';
+    currentTaskStateBadge.textContent = 'COMPLETED';
+    setTimeout(checkPendingApprovals, 500);
+  } else if (eventType === 'TASK_FAILED') {
+    currentStepLabel.textContent = `Error: ${data.error || 'Execution failed'}`;
+    setAgentState('FAILED', '#ef4444');
+    currentTaskStateBadge.textContent = 'FAILED';
+  } else if (eventType === 'TASK_CANCELLED') {
+    setAgentState('CANCELLED', '#f87171');
+    currentStepLabel.textContent = 'Task was cancelled.';
+    currentTaskStateBadge.textContent = 'CANCELLED';
   }
 
   checkPendingApprovals();
@@ -88,15 +109,19 @@ function addTimelineItem(title, data) {
 
   let details = '';
   if (data.task) {
-    details = `[${data.task.state}] ${data.task.user_query}`;
+    details = `[${data.task.status || data.task.state}] ${data.task.user_request || data.task.user_query}`;
   } else if (data.message) {
     details = data.message;
+  } else if (data.action) {
+    details = `${data.action} (${data.tool})`;
+  } else if (data.result) {
+    details = data.result;
   } else {
     details = JSON.stringify(data);
   }
 
   item.innerHTML = `
-    <div class="timeline-time">${now} • ${title.toUpperCase()}</div>
+    <div class="timeline-time">${now} • ${title}</div>
     <div class="timeline-content">${escapeHtml(details)}</div>
   `;
 
@@ -110,30 +135,24 @@ function renderActiveTask(task) {
   noActiveTaskMsg.classList.add('hidden');
   taskDetailsContent.classList.remove('hidden');
 
-  currentTaskQuery.textContent = task.user_query;
-  currentTaskStateBadge.textContent = task.state;
+  currentTaskQuery.textContent = task.user_request || task.user_query;
+  const status = task.status || task.state || 'PLANNING';
+  currentTaskStateBadge.textContent = status;
 
-  // State color mapping
   const stateColors = {
     'PLANNING': { text: 'THINKING...', color: '#38bdf8', pct: 25 },
-    'WAITING_FOR_PERMISSION': { text: 'WAITING APPROVAL', color: '#f59e0b', pct: 40 },
+    'WAITING_FOR_PERMISSION': { text: 'WAITING FOR APPROVAL', color: '#f59e0b', pct: 40 },
     'EXECUTING': { text: 'WORKING...', color: '#8b5cf6', pct: 60 },
     'VERIFYING': { text: 'VERIFYING...', color: '#06b6d4', pct: 85 },
-    'COMPLETED': { text: 'COMPLETED', color: '#10b981', pct: 100 },
+    'COMPLETED': { text: 'IDLE', color: '#10b981', pct: 100 },
     'FAILED': { text: 'FAILED', color: '#ef4444', pct: 100 },
     'CANCELLED': { text: 'CANCELLED', color: '#f87171', pct: 100 },
   };
 
-  const meta = stateColors[task.state] || { text: task.state, color: '#94a3b8', pct: 10 };
+  const meta = stateColors[status] || { text: status, color: '#94a3b8', pct: 10 };
   setAgentState(meta.text, meta.color);
   taskProgressBar.style.width = `${meta.pct}%`;
   taskProgressBar.style.background = meta.color;
-
-  if (task.state === 'COMPLETED') {
-    currentStepLabel.textContent = task.final_output || 'Task verified and completed.';
-  } else if (task.state === 'FAILED') {
-    currentStepLabel.textContent = `Error: ${task.error || 'Execution failed'}`;
-  }
 }
 
 function setAgentState(text, color) {
@@ -142,14 +161,19 @@ function setAgentState(text, color) {
   stateBadge.style.borderColor = color;
 }
 
-// Fetch Initial Status
+// Fetch Initial Status & Health
 async function loadStatus() {
   try {
-    const res = await fetch('/api/status');
+    const res = await fetch('/status');
     const data = await res.json();
     toolCount.textContent = data.registered_tools_count;
     providerBadge.textContent = `${data.llm_provider.toUpperCase()} (${data.llm_model})`;
     envName.textContent = data.environment;
+
+    const healthRes = await fetch('/health');
+    const healthData = await healthRes.json();
+    healthStatus.textContent = healthData.status.toUpperCase();
+    healthStatus.style.color = healthData.status === 'healthy' ? '#10b981' : '#f59e0b';
   } catch (err) {
     console.error('Failed to load status', err);
   }
@@ -158,14 +182,14 @@ async function loadStatus() {
 // Check Pending Approvals
 async function checkPendingApprovals() {
   try {
-    const res = await fetch('/api/approvals');
+    const res = await fetch('/approvals');
     const approvals = await res.json();
 
     if (approvals.length > 0) {
       const req = approvals[0];
       currentPendingApprovalId = req.id;
       approvalDesc.textContent = `${req.description} [${req.tool_name}]`;
-      approvalTargetText.textContent = req.target || 'System/Process';
+      approvalTargetText.textContent = req.target || 'System';
       approvalRisk.textContent = req.risk_level;
       approvalCard.classList.remove('hidden');
       setAgentState('WAITING FOR PERMISSION', '#f59e0b');
@@ -178,21 +202,21 @@ async function checkPendingApprovals() {
   }
 }
 
-// Submit Task via form
+// Submit Task Form
 commandForm.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const query = commandInput.value.trim();
-  if (!query) return;
+  const instruction = commandInput.value.trim();
+  if (!instruction) return;
 
   commandInput.value = '';
   sendBtn.disabled = true;
   setAgentState('THINKING...', '#38bdf8');
 
   try {
-    const res = await fetch('/api/tasks', {
+    const res = await fetch('/tasks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query })
+      body: JSON.stringify({ user_request: instruction })
     });
     const task = await res.json();
     renderActiveTask(task);
@@ -203,7 +227,7 @@ commandForm.addEventListener('submit', async (e) => {
   }
 });
 
-// Approve & Reject Buttons
+// Approve & Reject Actions
 approveBtn.addEventListener('click', async () => {
   if (!currentPendingApprovalId) return;
   await resolveApproval(currentPendingApprovalId, true);
@@ -216,10 +240,10 @@ rejectBtn.addEventListener('click', async () => {
 
 async function resolveApproval(requestId, approved) {
   try {
-    await fetch(`/api/approvals/${requestId}`, {
+    await fetch(`/approvals/${requestId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ approved, resolved_by: 'web_dashboard' })
+      body: JSON.stringify({ approved, resolved_by: 'dashboard' })
     });
     approvalCard.classList.add('hidden');
   } catch (err) {
@@ -227,12 +251,43 @@ async function resolveApproval(requestId, approved) {
   }
 }
 
-// Emergency Stop Button
+// Stop Button
 emergencyStopBtn.addEventListener('click', async () => {
   try {
-    await fetch('/api/stop', { method: 'POST' });
+    await fetch('/stop', { method: 'POST' });
   } catch (err) {
     console.error('Failed to trigger stop', err);
+  }
+});
+
+// Start Listening Button
+startListeningBtn.addEventListener('click', () => {
+  isListening = !isListening;
+  if (isListening) {
+    startListeningBtn.classList.add('listening-active');
+    startListeningBtn.innerHTML = `● Listening ("Shivani")`;
+    setAgentState('LISTENING', '#38bdf8');
+  } else {
+    startListeningBtn.classList.remove('listening-active');
+    startListeningBtn.innerHTML = `Start Listening`;
+    setAgentState('IDLE', '#10b981');
+  }
+});
+
+// Settings Button
+settingsBtn.addEventListener('click', () => {
+  alert('SHIVANI Settings:\n\nProvider: ' + providerBadge.textContent + '\nSecurity Policy: STRICT\nWake Word: "Shivani"\nAPI Port: 8000');
+});
+
+// Task History Button
+taskHistoryBtn.addEventListener('click', async () => {
+  try {
+    const res = await fetch('/tasks');
+    const tasks = await res.json();
+    const summary = tasks.map(t => `• [${t.status}] ${t.user_request}`).join('\n') || 'No tasks yet.';
+    alert('Task History:\n\n' + summary);
+  } catch (err) {
+    alert('Failed to fetch history: ' + err.message);
   }
 });
 
@@ -246,7 +301,7 @@ function escapeHtml(str) {
   })[m]);
 }
 
-// Start
+// Initialization
 connectWebSocket();
 loadStatus();
 checkPendingApprovals();

@@ -5,24 +5,30 @@ Unit tests for SHIVANI Security & Permissions Engine.
 import pytest
 from pathlib import Path
 from security.permissions.engine import PermissionEngine, RiskLevel, ApprovalStatus
-from security.sandbox.command_validator import CommandValidator
+from security.sandbox.command_validator import CommandValidator, CommandRisk
 
 
 def test_command_risk_classification():
-    # Safe commands
+    # 4-tier classifier checks
+    assert CommandValidator.classify_command("dir") == CommandRisk.SAFE
+    assert CommandValidator.classify_command("git status") == CommandRisk.SAFE
+    assert CommandValidator.classify_command("python --version") == CommandRisk.SAFE
+
+    assert CommandValidator.classify_command("pip install pydantic") == CommandRisk.WARNING
+    assert CommandValidator.classify_command("python script.py") == CommandRisk.WARNING
+    assert CommandValidator.classify_command("git commit -m 'test'") == CommandRisk.WARNING
+
+    assert CommandValidator.classify_command("del test.txt") == CommandRisk.DANGEROUS
+    assert CommandValidator.classify_command("taskkill /f /im notepad.exe") == CommandRisk.DANGEROUS
+
+    assert CommandValidator.classify_command("format c:") == CommandRisk.BLOCKED
+    assert CommandValidator.classify_command("rmdir /s /q c:\\") == CommandRisk.BLOCKED
+
+    # Permission RiskLevel translation
     assert CommandValidator.classify_risk("dir") == RiskLevel.SAFE
-    assert CommandValidator.classify_risk("git status") == RiskLevel.SAFE
-    assert CommandValidator.classify_risk("python --version") == RiskLevel.SAFE
-
-    # Sensitive commands
-    assert CommandValidator.classify_risk("python script.py") == RiskLevel.SENSITIVE
     assert CommandValidator.classify_risk("pip install pydantic") == RiskLevel.SENSITIVE
-    assert CommandValidator.classify_risk("git commit -m 'test'") == RiskLevel.SENSITIVE
-
-    # Critical commands
     assert CommandValidator.classify_risk("del test.txt") == RiskLevel.CRITICAL
-    assert CommandValidator.classify_risk("rmdir /s myfolder") == RiskLevel.CRITICAL
-    assert CommandValidator.classify_risk("taskkill /f /im notepad.exe") == RiskLevel.CRITICAL
+
 
 
 def test_blocked_destructive_commands():

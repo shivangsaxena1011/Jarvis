@@ -7,7 +7,7 @@ import pytest
 from core.config import Settings
 from core.context.normalizer import HinglishNormalizer, SessionContext
 from core.orchestrator.orchestrator import Orchestrator
-from core.orchestrator.state_machine import TaskState
+from core.tasks.task import TaskStatus
 
 
 def test_hinglish_normalization():
@@ -42,11 +42,11 @@ async def test_orchestrator_task_lifecycle(tmp_path):
     # Wait for completion
     timeout = 10.0
     elapsed = 0.0
-    while task.state not in (TaskState.COMPLETED, TaskState.FAILED, TaskState.CANCELLED) and elapsed < timeout:
+    while task.status not in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED) and elapsed < timeout:
         await asyncio.sleep(0.1)
         elapsed += 0.1
 
-    assert task.state == TaskState.COMPLETED
+    assert task.status == TaskStatus.COMPLETED
     assert len(task.step_results) >= 1
     assert task.step_results[0].success is True
     assert task.step_results[0].verification.get("verified") is True
@@ -61,14 +61,25 @@ async def test_emergency_stop_mechanism(tmp_path):
     )
     orch = Orchestrator(settings=settings)
 
-    # Submit task
     task = await orch.submit_task("Shivani, open notepad and inspect active window")
-    
-    # Immediately trigger emergency stop
     cancelled = orch.stop_all()
-    assert cancelled >= 0 # at least 0 or 1 task aborted
+    assert cancelled >= 0
 
-    # Allow task loop to finalize cancellation
     await asyncio.sleep(0.3)
     assert orch.emergency.is_stopped is True
-    assert task.state in (TaskState.CANCELLED, TaskState.FAILED, TaskState.COMPLETED)
+    assert task.status in (TaskStatus.CANCELLED, TaskStatus.FAILED, TaskStatus.COMPLETED)
+
+
+@pytest.mark.asyncio
+async def test_explicit_task_cancellation(tmp_path):
+    settings = Settings(
+        LLM_PROVIDER="mock",
+        SECURITY_POLICY="lenient",
+        AUDIT_LOG_PATH=str(tmp_path / "test_audit.jsonl")
+    )
+    orch = Orchestrator(settings=settings)
+
+    task = await orch.submit_task("Inspect active window")
+    cancelled = orch.cancel_task(task.id)
+    assert cancelled is True
+    assert task.status == TaskStatus.CANCELLED
