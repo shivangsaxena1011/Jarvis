@@ -19,6 +19,7 @@ class AppDirectories:
     tasks_dir: Path
     cache_dir: Path
     backups_dir: Path
+    skills_dir: Path
 
     def ensure_dirs(self) -> None:
         """Creates all application directories if they do not exist."""
@@ -31,8 +32,17 @@ class AppDirectories:
             self.tasks_dir,
             self.cache_dir,
             self.backups_dir,
+            self.skills_dir,
         ]:
             path.mkdir(parents=True, exist_ok=True)
+
+    def get_skill_dir(self, skill_name: str) -> Path:
+        """Returns isolated directory for a specific skill: %APPDATA%/Shivani/skills/<skill_name>."""
+        p = self.skills_dir / skill_name
+        p.mkdir(parents=True, exist_ok=True)
+        for sub in ["config", "cache", "logs", "data"]:
+            (p / sub).mkdir(parents=True, exist_ok=True)
+        return p
 
 
 def get_app_dirs() -> AppDirectories:
@@ -63,4 +73,6 @@ def get_app_dirs() -> AppDirectories:
         tasks_dir=root / "tasks",
         cache_dir=root / "cache",
         backups_dir=root / "backups",
+        skills_dir=root / "skills",
     )
+

@@ -276,6 +276,21 @@ from tools.knowledge_tools import (
 
 from planning.dependency_graph import TaskGraph
 
+# Phase 13: Extensibility, Universal Skills, App Connectors & Adapters
+from skills.registry import SkillRegistry
+from skills.lifecycle import SkillLifecycleManager
+from connectors.registry import ConnectorRegistry
+from connectors.accounts import AccountManager
+from adapters.registry import AdapterRegistry
+from adapters.browser import BrowserAppAdapter
+from adapters.android import AndroidAppAdapter
+from tools.skill_tools import (
+    SkillListTool,
+    SkillInfoTool,
+    ConnectorListTool,
+    AdapterListTool,
+)
+
 
 
 class Orchestrator:
@@ -373,6 +388,15 @@ class Orchestrator:
 
         # Phase 12: Knowledge OS
         self.knowledge_os = get_knowledge_os()
+
+        # Phase 13: Extensibility, Universal Skills, Connectors, Adapters
+        self.skill_registry = SkillRegistry(tool_registry=self.tools, agent_registry=self.agent_registry)
+        self.skill_lifecycle = SkillLifecycleManager(registry=self.skill_registry)
+        self.account_manager = AccountManager()
+        self.connector_registry = ConnectorRegistry(account_manager=self.account_manager)
+        self.adapter_registry = AdapterRegistry()
+        self.adapter_registry.register_adapter(BrowserAppAdapter(browser_agent=self.browser_agent))
+        self.adapter_registry.register_adapter(AndroidAppAdapter("android", "com.android.settings", device_bridge=self.device_bridge))
 
 
         # Register Emergency Abort Callbacks
@@ -654,6 +678,11 @@ class Orchestrator:
             KnowledgeIndexPathTool(knowledge_os=self.knowledge_os),
             KnowledgeQueryGraphTool(knowledge_os=self.knowledge_os),
             KnowledgeAddNoteTool(knowledge_os=self.knowledge_os),
+            # Phase 13: Extensibility & Universal Skills tools
+            SkillListTool(registry=self.skill_registry),
+            SkillInfoTool(registry=self.skill_registry),
+            ConnectorListTool(registry=self.connector_registry),
+            AdapterListTool(registry=self.adapter_registry),
         ]
         for t in default_tools:
             self.tools.register(t)

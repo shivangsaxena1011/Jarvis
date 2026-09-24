@@ -51,6 +51,9 @@ include = [
     "voice*",
     "planning*",
     "knowledge*",
+    "skills*",
+    "connectors*",
+    "adapters*",
 ]
 
 [tool.pytest.ini_options]

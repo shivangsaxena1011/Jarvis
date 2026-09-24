@@ -29,6 +29,13 @@ class ToolRegistry:
         # Sync risk level with permission engine
         self.permissions.set_tool_risk(tool.name, tool.permission_level)
 
+    def unregister(self, name: str) -> bool:
+        """Removes a tool from the registry."""
+        if name in self._tools:
+            del self._tools[name]
+            return True
+        return False
+
     def get_tool(self, name: str) -> Optional[BaseTool]:
         return self._tools.get(name)
 

@@ -157,6 +157,39 @@ def main(argv: Optional[list] = None) -> int:
     # stop (emergency stop)
     subparsers.add_parser("stop", help="Trigger Emergency Stop across all active tasks")
 
+    # skill (universal skills & extensibility)
+    skill_parser = subparsers.add_parser("skill", help="Manage universal skills and plugins")
+    skill_sub = skill_parser.add_subparsers(dest="skill_action")
+
+    skill_sub.add_parser("list", help="List installed skills")
+
+    info_p = skill_sub.add_parser("info", help="Show skill details")
+    info_p.add_argument("name", help="Skill name")
+
+    install_p = skill_sub.add_parser("install", help="Install a skill package")
+    install_p.add_argument("path", help="Directory path to skill package")
+    install_p.add_argument("--yes", "-y", action="store_true", help="Confirm installation permissions")
+
+    enable_p = skill_sub.add_parser("enable", help="Enable an installed skill")
+    enable_p.add_argument("name", help="Skill name")
+
+    disable_p = skill_sub.add_parser("disable", help="Disable an active skill")
+    disable_p.add_argument("name", help="Skill name")
+
+    update_p = skill_sub.add_parser("update", help="Update a skill package")
+    update_p.add_argument("name", help="Skill name")
+    update_p.add_argument("path", help="Path to new skill package")
+    update_p.add_argument("--yes", "-y", action="store_true", help="Confirm permission escalation")
+
+    uninstall_p = skill_sub.add_parser("uninstall", help="Uninstall a skill")
+    uninstall_p.add_argument("name", help="Skill name")
+    uninstall_p.add_argument("--purge-data", action="store_true", help="Delete isolated user data")
+
+    scaffold_p = skill_sub.add_parser("scaffold", help="Scaffold a new skill package")
+    scaffold_p.add_argument("name", help="Skill name")
+    scaffold_p.add_argument("--type", default="api", choices=["api", "tool", "app"], help="Template type")
+    scaffold_p.add_argument("--out", default=".", help="Output directory")
+
     args = parser.parse_args(argv)
 
     if args.command == "doctor":
@@ -182,6 +215,9 @@ def main(argv: Optional[list] = None) -> int:
         stopped = es.trigger_stop_all()
         print(f"Emergency Stop triggered. Aborted {stopped} active tasks and triggered all shutdown hooks.")
         return 0
+    elif args.command == "skill":
+        from cli.skill_cli import handle_skill_cli
+        return handle_skill_cli(args)
     else:
         parser.print_help()
         return 0

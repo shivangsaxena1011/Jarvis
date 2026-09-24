@@ -34,6 +34,19 @@ class AgentRegistry:
         if message_handler:
             self._handlers[descriptor.name] = message_handler
 
+    def unregister_agent(self, name: str) -> bool:
+        """Unregisters an agent, its descriptor, and its message handler."""
+        removed = False
+        if name in self._agents:
+            del self._agents[name]
+            removed = True
+        if name in self._descriptors:
+            del self._descriptors[name]
+            removed = True
+        if name in self._handlers:
+            del self._handlers[name]
+        return removed
+
     def get_agent(self, name: str) -> Optional[Any]:
         return self._agents.get(name)
 
