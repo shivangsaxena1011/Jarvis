@@ -66,6 +66,8 @@ async def run_one_shot(query: str):
     else:
         console.print(f"[bold cyan]Result:[/bold cyan] {task.final_output}")
 
+    await orchestrator.shutdown()
+
 
 def main():
     parser = argparse.ArgumentParser(description="SHIVANI Autonomous Personal AI Agent")

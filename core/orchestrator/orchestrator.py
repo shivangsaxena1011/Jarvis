@@ -69,6 +69,41 @@ from tools.filesystem.file_tools import (
 # Terminal Tool
 from tools.terminal.shell_tools import TerminalExecuteTool
 
+# Browser Agent & Tools (Phase 4)
+from agents.browser.agent import BrowserAgent
+from tools.browser import (
+    BrowserOpenTool,
+    BrowserCloseTool,
+    BrowserNavigateTool,
+    BrowserBackTool,
+    BrowserForwardTool,
+    BrowserRefreshTool,
+    BrowserGetTitleTool,
+    BrowserGetUrlTool,
+    BrowserSearchTool,
+    BrowserFindTool,
+    BrowserClickTool,
+    BrowserDoubleClickTool,
+    BrowserTypeTool,
+    BrowserClearTool,
+    BrowserSelectTool,
+    BrowserPressKeyTool,
+    BrowserScrollTool,
+    BrowserScrollToTool,
+    BrowserNewTabTool,
+    BrowserSwitchTabTool,
+    BrowserCloseTabTool,
+    BrowserListTabsTool,
+    BrowserExtractTextTool,
+    BrowserExtractLinksTool,
+    BrowserSummarizeTool,
+    BrowserExtractDataTool,
+    BrowserScreenshotTool,
+    BrowserUploadFileTool,
+    BrowserDownloadFileTool,
+    BrowserPlayYouTubeTool,
+)
+
 
 class Orchestrator:
     def __init__(
@@ -79,6 +114,7 @@ class Orchestrator:
         audit_logger: Optional[AuditLogger] = None,
         event_bus: Optional[EventBus] = None,
         os_adapter: Optional[OperatingSystemAdapter] = None,
+        browser_agent: Optional[BrowserAgent] = None,
     ):
         self.settings = settings or get_settings()
         self.os_adapter = os_adapter or get_os_adapter()
@@ -92,13 +128,14 @@ class Orchestrator:
         self.context = SessionContext()
         self.ui_context = CurrentUIContext()
         self.computer_agent = ComputerAgent(adapter=self.os_adapter, context=self.ui_context)
+        self.browser_agent = browser_agent or BrowserAgent()
         
         self.planner = TaskPlanner(self.llm, self.tools)
         self.executor = TaskExecutor(self.tools, self.emergency, event_bus=self.events)
 
         self._tasks: Dict[str, Task] = {}
 
-        # Auto-register Phase 1 & Phase 3 tools
+        # Auto-register Phase 1, Phase 3, and Phase 4 tools
         self._register_default_tools()
 
     def _register_default_tools(self) -> None:
@@ -150,6 +187,40 @@ class Orchestrator:
             WriteFileTool(),
             # Terminal tool
             TerminalExecuteTool(),
+            # Browser navigation tools
+            BrowserOpenTool(browser_agent=self.browser_agent),
+            BrowserCloseTool(browser_agent=self.browser_agent),
+            BrowserNavigateTool(browser_agent=self.browser_agent),
+            BrowserBackTool(browser_agent=self.browser_agent),
+            BrowserForwardTool(browser_agent=self.browser_agent),
+            BrowserRefreshTool(browser_agent=self.browser_agent),
+            BrowserGetTitleTool(browser_agent=self.browser_agent),
+            BrowserGetUrlTool(browser_agent=self.browser_agent),
+            BrowserSearchTool(browser_agent=self.browser_agent),
+            # Browser interaction tools
+            BrowserFindTool(browser_agent=self.browser_agent),
+            BrowserClickTool(browser_agent=self.browser_agent),
+            BrowserDoubleClickTool(browser_agent=self.browser_agent),
+            BrowserTypeTool(browser_agent=self.browser_agent),
+            BrowserClearTool(browser_agent=self.browser_agent),
+            BrowserSelectTool(browser_agent=self.browser_agent),
+            BrowserPressKeyTool(browser_agent=self.browser_agent),
+            BrowserScrollTool(browser_agent=self.browser_agent),
+            BrowserScrollToTool(browser_agent=self.browser_agent),
+            # Browser tab tools
+            BrowserNewTabTool(browser_agent=self.browser_agent),
+            BrowserSwitchTabTool(browser_agent=self.browser_agent),
+            BrowserCloseTabTool(browser_agent=self.browser_agent),
+            BrowserListTabsTool(browser_agent=self.browser_agent),
+            # Browser content & workflow tools
+            BrowserExtractTextTool(browser_agent=self.browser_agent),
+            BrowserExtractLinksTool(browser_agent=self.browser_agent),
+            BrowserSummarizeTool(browser_agent=self.browser_agent),
+            BrowserExtractDataTool(browser_agent=self.browser_agent),
+            BrowserScreenshotTool(browser_agent=self.browser_agent),
+            BrowserUploadFileTool(browser_agent=self.browser_agent),
+            BrowserDownloadFileTool(browser_agent=self.browser_agent),
+            BrowserPlayYouTubeTool(browser_agent=self.browser_agent),
         ]
         for t in default_tools:
             self.tools.register(t)
@@ -288,3 +359,12 @@ class Orchestrator:
                 "emergency_stopped": self.emergency.is_stopped
             }
         }
+
+    async def shutdown(self) -> None:
+        """Gracefully stops all active tasks and cleans up browser sessions."""
+        self.stop_all()
+        try:
+            await self.browser_agent.close()
+        except Exception:
+            pass
+

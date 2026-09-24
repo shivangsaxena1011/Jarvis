@@ -14,6 +14,15 @@ SHIVANI is a voice-first, autonomous personal AI operating layer designed to und
   - `SAFE`: Non-destructive read and observation actions run automatically.
   - `SENSITIVE`: File modifications, git commits, and shell operations require policy approval.
   - `CRITICAL`: Destructive operations (file deletions, system process termination, irreversible disk changes) strictly require user confirmation.
+- **Universal Autonomous Browser Agent (Phase 4)**:
+  - Operates modern web applications via Playwright (`agents/browser/`, `tools/browser/`).
+  - Implements the strict **OBSERVE ──▶ PLAN ──▶ ACT ──▶ VERIFY** paradigm.
+  - Multi-browser channel management: Chrome, Microsoft Edge, Brave, and bundled Chromium with profile isolation.
+  - 7-Tier natural-language element resolution (role/name, label, placeholder, test-id, visible text, semantic CSS, multimodal vision fallback).
+  - YouTube search & playback workflow with title disambiguation via `SequenceMatcher` and verification of HTML5 `<video>` playback state.
+  - Multi-engine search (Google, Bing, DuckDuckGo), noise-filtered webpage summarization, and structured data extraction.
+  - Multi-tab lifecycle control (open, switch, close, list) and file upload/download verification.
+  - Third-party integration foundations (`integrations/linkedin/`, `integrations/gmail/`) with mandatory human-in-the-loop confirmation.
 - **Autonomous Computer Use Agent & Windows 11 Desktop Control**:
   - Operates Windows 11 applications (*"Shivani, open VS Code"*, *"Chrome kholo"*), multi-tier app discovery (Registry App Paths, Start Menu `.lnk`, PATH).
   - Window management: minimize (*"Chrome ko minimize karo"*), maximize, restore, focus/switch (*"VS Code pe wapas jao"*), and close.
@@ -32,6 +41,7 @@ SHIVANI is a voice-first, autonomous personal AI operating layer designed to und
 - **Redacting Audit Logger**: Logs every task, step, and verification in `audit.jsonl` with automatic masking of secrets, API keys, and passwords.
 - **Emergency Stop System**: Immediate task abort via `"Shivani stop"` voice command, REST API, or the Desktop Dashboard **STOP ALL** button.
 - **Futuristic Desktop Dashboard**: Dark-first, luminous interface with real-time WebSocket state streaming, timeline updates, and interactive approval cards.
+
 
 ---
 

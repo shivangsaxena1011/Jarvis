@@ -11,8 +11,17 @@ from pydantic import BaseModel, Field
 
 # Common Hindi / Hinglish vocabulary mappings
 HINGLISH_ACTION_MAP = [
+    # Summarize & Extract (Browser Intelligence)
+    (r"\b(?:is webpage ka summary batao|is page ka summary batao|summary batao|summary do|summarize karo|summary nikalo)\b", "summarize this page"),
+    (r"\b(?:ye webpage se important information extract karo|is webpage se data extract karo|information extract karo|extract karo)\b", "extract information from webpage"),
+    (r"\b(?:is webpage ka|is page ka|ye webpage ka|ye page ka)\b", "this webpage"),
+    (r"\b(?:ye webpage se|is webpage se|is page se)\b", "from this webpage"),
+    # Search on engine / site (e.g., "Google pe ... search karo")
+    (r"\bpe\s+(.*?)\s+search karo\b", r"search \1 on"),
+    (r"\bka song search karo\b", "search song"),
+    (r"\bka gana search karo\b", "search song"),
     # Play / Media (specific first)
-    (r"\b(?:gana chalao|gana chala do|gana bajao|play karo)\b", "play song"),
+    (r"\b(?:ye song play karo|is song ko play karo|gana chalao|gana chala do|gana bajao|play karo)\b", "play song"),
     (r"\bgana\b", "song"),
     # Minimize / Maximize / Restore / Switch (Window Management)
     (r"\b(?:ko minimize karo|minimize karo|chhota karo)\b", "minimize"),

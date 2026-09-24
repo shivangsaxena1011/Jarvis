@@ -53,6 +53,109 @@ class MockProvider(LLMProvider):
             if key in query:
                 return plan
 
+        # Browser YouTube Playback Task
+        if "play" in query or "song" in query or "gana" in query or "arijit" in query:
+            song_query = user_query
+            for prefix in ["play song", "play", "shivani", "ye song", "is song ko"]:
+                if prefix in song_query.lower():
+                    song_query = song_query.lower().replace(prefix, "").strip()
+            song_query = song_query or "Arijit Singh"
+            return TaskPlan(
+                goal=user_query,
+                rationale="Search and play requested song/video on YouTube",
+                steps=[
+                    PlanStep(
+                        id="1",
+                        tool="browser.play_youtube",
+                        action=f"Search YouTube and play '{song_query}'",
+                        arguments={"query": song_query},
+                        expected_outcome="Song playing on YouTube"
+                    )
+                ]
+            )
+
+        # Browser YouTube Open
+        if "youtube" in query:
+            return TaskPlan(
+                goal=user_query,
+                rationale="Open YouTube in web browser",
+                steps=[
+                    PlanStep(
+                        id="1",
+                        tool="browser.open",
+                        action="Navigate to YouTube",
+                        arguments={"url": "https://www.youtube.com"},
+                        expected_outcome="YouTube opened in browser"
+                    )
+                ]
+            )
+
+        # Browser Web Search Task
+        if "google" in query or "search" in query or "dhoondo" in query:
+            search_query = query.replace("google", "").replace("search", "").replace("pe", "").replace("on", "").strip()
+            search_query = search_query or "AI research"
+            return TaskPlan(
+                goal=user_query,
+                rationale="Search the web using search engine",
+                steps=[
+                    PlanStep(
+                        id="1",
+                        tool="browser.search",
+                        action=f"Search Google for '{search_query}'",
+                        arguments={"query": search_query, "engine": "google"},
+                        expected_outcome="Search results displayed"
+                    )
+                ]
+            )
+
+        # Browser Summarize Webpage Task
+        if "summarize" in query or "summary" in query:
+            return TaskPlan(
+                goal=user_query,
+                rationale="Summarize active webpage content",
+                steps=[
+                    PlanStep(
+                        id="1",
+                        tool="browser.summarize",
+                        action="Extract and summarize current webpage",
+                        arguments={},
+                        expected_outcome="Structured summary generated"
+                    )
+                ]
+            )
+
+        # Browser Extract Data Task
+        if "extract" in query or "information" in query:
+            return TaskPlan(
+                goal=user_query,
+                rationale="Extract important information from active webpage",
+                steps=[
+                    PlanStep(
+                        id="1",
+                        tool="browser.extract_data",
+                        action="Extract key information from webpage",
+                        arguments={"extraction_type": "general"},
+                        expected_outcome="Extracted data structure returned"
+                    )
+                ]
+            )
+
+        # Browser LinkedIn Task
+        if "linkedin" in query:
+            return TaskPlan(
+                goal=user_query,
+                rationale="Navigate to LinkedIn",
+                steps=[
+                    PlanStep(
+                        id="1",
+                        tool="browser.open",
+                        action="Open LinkedIn feed",
+                        arguments={"url": "https://www.linkedin.com"},
+                        expected_outcome="LinkedIn opened in browser"
+                    )
+                ]
+            )
+
         # Minimize window task
         if "minimize" in query:
             target_app = "chrome" if "chrome" in query else ("vs code" if "code" in query else None)

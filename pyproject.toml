@@ -16,6 +16,7 @@ dependencies = [
     "pywinauto>=0.6.8",
     "pyperclip>=1.8.2",
     "pygetwindow>=0.0.9",
+    "playwright>=1.40.0",
     "python-dotenv>=1.0.1",
     "rich>=13.7.1",
     "websockets>=12.0",

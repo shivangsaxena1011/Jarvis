@@ -52,9 +52,12 @@ class Settings(BaseSettings):
     AUDIO_OUTPUT_DIR: str = "audio_cache"
 
     # Browser
-
     BROWSER_HEADLESS: bool = False
     PREFERRED_BROWSER: Literal["chromium", "chrome", "brave", "edge"] = "chromium"
+    BROWSER_NAVIGATION_TIMEOUT: float = 30.0
+    BROWSER_ACTION_TIMEOUT: float = 10.0
+    BROWSER_USER_DATA_DIR: str = ""
+    BROWSER_DOWNLOAD_DIR: str = "downloads"
 
     # Mobile Bridge
     MOBILE_BRIDGE_HOST: str = "0.0.0.0"
@@ -74,6 +77,12 @@ class Settings(BaseSettings):
     @property
     def screenshot_path(self) -> Path:
         path = Path(self.SCREENSHOT_DIR)
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    @property
+    def download_path(self) -> Path:
+        path = Path(self.BROWSER_DOWNLOAD_DIR)
         path.mkdir(parents=True, exist_ok=True)
         return path
 
