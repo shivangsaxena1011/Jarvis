@@ -30,6 +30,7 @@ class WorkflowStep(BaseModel):
     verification: Dict[str, Any] = Field(default_factory=dict)
     permission: RiskLevel = RiskLevel.SAFE
     requires_approval: bool = False
+    stage: Optional[str] = None
     status: str = "PENDING"
     result: Any = None
     error: Optional[str] = None
@@ -46,6 +47,8 @@ class WorkflowResult(BaseModel):
     step_results: List[Dict[str, Any]] = Field(default_factory=list)
     final_data: Dict[str, Any] = Field(default_factory=dict)
     pending_approval_id: Optional[str] = None
+    completed_stages: List[str] = Field(default_factory=list)
+    checkpoints: Dict[str, Any] = Field(default_factory=dict)
     error: Optional[str] = None
     message: str = ""
 
@@ -59,5 +62,7 @@ class Workflow(BaseModel):
     status: WorkflowStatus = WorkflowStatus.PENDING
     context_data: Dict[str, Any] = Field(default_factory=dict)
     pending_approval_id: Optional[str] = None
+    completed_stages: List[str] = Field(default_factory=list)
+    checkpoints: Dict[str, Any] = Field(default_factory=dict)
     failure_diagnostics: Dict[str, Any] = Field(default_factory=dict)
     error: Optional[str] = None

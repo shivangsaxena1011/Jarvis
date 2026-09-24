@@ -26,13 +26,15 @@ class WorkflowEngine:
         permission_engine: Optional[PermissionEngine] = None,
         event_bus: Optional[EventBus] = None,
         browser_agent: Optional[BrowserAgent] = None,
-        os_adapter: Optional[OperatingSystemAdapter] = None
+        os_adapter: Optional[OperatingSystemAdapter] = None,
+        artifact_manager: Optional[Any] = None
     ):
         self.tools = tool_registry
         self.permissions = permission_engine or PermissionEngine()
         self.events = event_bus or get_event_bus()
         self.browser = browser_agent
         self.os_adapter = os_adapter or get_os_adapter()
+        self.artifacts = artifact_manager
         self._workflows: Dict[str, Workflow] = {}
 
     def register_workflow(self, workflow: Workflow) -> None:
@@ -120,12 +122,56 @@ class WorkflowEngine:
 
             # Update context_data with step results for subsequent steps
             self._update_workflow_context(workflow, step)
+
+            # Record stage checkpoint if step defines a stage
+            if step.stage:
+                if step.stage not in workflow.completed_stages:
+                    workflow.completed_stages.append(step.stage)
+                ckpt_data = {
+                    "stage": step.stage,
+                    "step_index": workflow.current_step_index,
+                    "context_data": dict(workflow.context_data)
+                }
+                workflow.checkpoints[step.stage] = ckpt_data
+                if self.artifacts:
+                    try:
+                        self.artifacts.save_checkpoint(workflow.id, step.stage, ckpt_data)
+                    except Exception:
+                        pass
+
             workflow.current_step_index += 1
 
         # All steps completed
         workflow.status = WorkflowStatus.COMPLETED
         self.events.publish(EventType.TASK_COMPLETED, task_id=workflow.id, data={"workflow": workflow.name})
         return self._build_result(workflow, success=True, message=f"Workflow '{workflow.name}' completed successfully.")
+
+    async def resume_from_checkpoint(self, workflow_id: str, stage: Optional[str] = None) -> WorkflowResult:
+        """Resumes a workflow from its latest valid checkpoint or a specified stage."""
+        workflow = self.get_workflow(workflow_id)
+        if not workflow:
+            raise ValueError(f"Workflow '{workflow_id}' not found.")
+
+        # Look in in-memory checkpoints or artifact storage
+        ckpt_data = None
+        if stage and stage in workflow.checkpoints:
+            ckpt_data = workflow.checkpoints[stage]
+        elif workflow.checkpoints:
+            # Use most recent
+            latest_stage = workflow.completed_stages[-1] if workflow.completed_stages else list(workflow.checkpoints.keys())[-1]
+            ckpt_data = workflow.checkpoints.get(latest_stage)
+
+        if not ckpt_data and self.artifacts:
+            loaded = self.artifacts.load_checkpoint(workflow_id, stage)
+            if loaded:
+                ckpt_data = loaded.get("data")
+
+        if ckpt_data:
+            workflow.context_data.update(ckpt_data.get("context_data", {}))
+            workflow.current_step_index = ckpt_data.get("step_index", 0) + 1
+
+        workflow.status = WorkflowStatus.RUNNING
+        return await self.execute_workflow(workflow)
 
     async def resume_workflow(self, workflow_id: str, approved: bool = True) -> WorkflowResult:
         """Resumes a paused workflow without restarting from the beginning."""
@@ -219,6 +265,8 @@ class WorkflowEngine:
             step_results=step_summaries,
             final_data=workflow.context_data,
             pending_approval_id=workflow.pending_approval_id,
+            completed_stages=workflow.completed_stages,
+            checkpoints=workflow.checkpoints,
             error=workflow.error,
             message=message
         )

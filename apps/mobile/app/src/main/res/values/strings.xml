@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">SHIVANI MOBILE</string>
+    <string name="accessibility_service_description">Enables SHIVANI laptop AI agent to operate user-requested apps, observe active UI, and perform actions with explicit user authorization.</string>
+</resources>

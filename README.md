@@ -31,7 +31,23 @@ SHIVANI is a voice-first, autonomous personal AI operating layer designed to und
   - **Autonomous Research Engine** (`integrations/research`): Multi-source querying, provenance tracking, structured citation extraction, and markdown/JSON report bundles (`report.md`, `sources.json`, `summary.json`).
   - **Content Synthesis Agent** (`agents/content`): High-impact social posts, email drafts, documentation, and README generation.
   - **Composable Workflow Engine** (`core/workflows`): Sequential execution, dynamic variable substitution (`{var}`), non-destructive pausing on approval (`WAITING_FOR_APPROVAL`), exact resumption, and environmental failure diagnostics.
-  - **100 Registered & Verified Tools**: Complete expansion of registered tools across all 5 phases with 100% test coverage (89/89 tests passing).
+- **Advanced Professional Agents & Checkpointed Long-Running Workflows (Phase 6)**:
+  - **Coding Agent** (`agents/coding/`, `tools/coding/`): Follows strict `UNDERSTAND ──▶ PLAN ──▶ MODIFY ──▶ TEST ──▶ VERIFY ──▶ REPORT`. Manifest-driven project detection (Python, Node/TS, Go, Rust), git safety (dirty-tree guards, mandatory confirmation for commits/push), ripgrep symbol & code search with automatic secret redaction (`[REDACTED]`), AST symbol extraction, targeted syntax-validated patches with rollback on failure, native test execution (pytest, npm test, cargo test, go test), and multi-category error diagnosis (`SYNTAX`, `DEPENDENCY`, `IMPORT`, `ENVIRONMENT`, `LOGIC`, `TYPE`, `PERMISSION`).
+  - **Research Agent** (`agents/research/`): Multi-source synthesis across primary documentation, academic preprints, and developer forums; automated source tier classification (`PRIMARY`, `SECONDARY`, `COMMUNITY`); strict provenance tracking with verified URL citations; contradiction & consensus analysis; and structured 9-section report generation saved to centralized artifacts.
+  - **Presentation Agent** (`agents/presentation/`, `tools/presentation/`): Generates genuine `.pptx` presentations using `python-pptx`, 16:9 widescreen layouts, dark-first technical color palette (`#0F172A`, `#38BDF8`, `#34D399`), structured slide layout types, overflow-proof content fitting, professional speaker notes, multi-duration pitch synthesis (30s elevator, 1m quick, 3m demo, 5m full), and 8-category technical judge Q&A anticipation.
+  - **Documentation Agent** (`agents/documentation/`, `tools/documentation/`): Inspects actual codebases to generate production-grade READMEs with Mermaid architecture diagrams and installation guides, extracts FastAPI/Flask endpoints for OpenAPI/markdown API reference specs, and drafts Architecture Decision Records (ADRs).
+  - **Long-Running Checkpointed Workflows** (`core/workflows/`): Stage-based durability (`research`, `requirements`, `architecture`, `implementation`, `testing`, `documentation`, `presentation`, `report`), crash recovery, state persistence via `ArtifactManager`, seamless resumption from checkpoints without re-running earlier stages, and the unified Hackathon Project Recipe (Recipe 5).
+  - **Centralized Artifact Management** (`core/artifacts/`): Strict namespace isolation under `workspace/shivani-artifacts/` (`project/`, `research/`, `presentations/`, `reports/`, `checkpoints/`, `logs/`) with zero clutter in working directories.
+- **Android Phone Agent & Secure Device Bridge (Phase 7)**:
+  - **Native Android Companion App** (`apps/mobile/`): Built with Kotlin + Jetpack Compose, featuring a futuristic dark UI matching desktop SHIVANI across 6 dedicated screens (Home, Connection, Permissions, Activity, Devices, Settings).
+  - **Secure Cryptographic Handshake**: 6-digit challenge code pairing with mutual SHA-256 HMAC token exchange; hardware-backed encryption via **Android KeyStore** (AES-256 GCM) with zero hard-coded credentials.
+  - **DeviceBridge & Heartbeat Monitoring**: Keepalive ping/pong with connection drop detection (`DEVICE_DISCONNECTED`), auto-abort guards, and instant emergency stop cancellation propagation (*"Shivani stop"*).
+  - **Natural Language App Resolution (`AppResolver`)**: Maps conversational English, Hindi, and Hinglish (*"phone mein Instagram kholo"*, *"phone ki settings kholo"*, *"meri photos kholo"*, *"YouTube chalao"*) to verified package identifiers with post-launch foreground verification.
+  - **Minimalist Accessibility Automation (`AndroidUIObserver`)**: Enforces strict data minimization by filtering `rootInActiveWindow` to only actionable UI targets without transmitting extraneous tree data.
+  - **Social Media Safety Gate**: Five-stage user approval discipline (`PREPARE ──▶ SHOW TARGET ──▶ SHOW ACTION ──▶ REQUEST APPROVAL ──▶ EXECUTE ──▶ VERIFY`) for comments, posts, and likes.
+  - **Cross-Device Photo Workflow (Recipe 6)**: Searches phone photos by query/tag, transfers chosen photos securely to laptop workspace, synthesizes LinkedIn drafts, and pauses at approval gates before verified publication.
+  - **Zero-Surveillance Privacy**: No continuous screen streaming, no background account scraping, on-demand notification summarization, and zero clipboard logging.
+  - **141 Registered & Verified Tools**: Complete expansion of registered tools across all 7 phases with 100% test coverage (116/116 tests passing).
 - **Autonomous Computer Use Agent & Windows 11 Desktop Control**:
   - Operates Windows 11 applications (*"Shivani, open VS Code"*, *"Chrome kholo"*), multi-tier app discovery (Registry App Paths, Start Menu `.lnk`, PATH).
   - Window management: minimize (*"Chrome ko minimize karo"*), maximize, restore, focus/switch (*"VS Code pe wapas jao"*), and close.
@@ -51,7 +67,6 @@ SHIVANI is a voice-first, autonomous personal AI operating layer designed to und
 - **Emergency Stop System**: Immediate task abort via `"Shivani stop"` voice command, REST API, or the Desktop Dashboard **STOP ALL** button.
 - **Futuristic Desktop Dashboard**: Dark-first, luminous interface with real-time WebSocket state streaming, timeline updates, and interactive approval cards.
 
-
 ---
 
 ## Repository Structure
@@ -59,31 +74,49 @@ SHIVANI is a voice-first, autonomous personal AI operating layer designed to und
 ```
 shivanI/
 ├── agents/
-│   └── computer/            # ComputerAgent, ScreenObserver, CurrentUIContext, BrowserStub
+│   ├── computer/            # ComputerAgent, ScreenObserver, CurrentUIContext
+│   ├── browser/             # BrowserAgent, Playwright automation & element resolution
+│   ├── coding/              # CodingAgent, ProjectDetector, GitManager, PatchManager
+│   ├── research/            # ResearchAgent, MultiSourceSynthesizer, ContradictionAnalyzer
+│   ├── presentation/        # PresentationAgent, PPTX Generator, PitchBuilder, JudgeQA
+│   ├── documentation/       # DocumentationAgent, ReadmeGenerator, ApiDocExtractor, ADR
+│   └── content/             # ContentSynthesisAgent (social posts, emails, writeups)
 ├── apps/
 │   ├── desktop/             # FastAPI backend & futuristic Web Dashboard
 │   └── mobile/              # Android companion specs & bridge
 ├── core/
+│   ├── artifacts/           # Centralized ArtifactManager (project, research, decks, checkpoints)
 │   ├── orchestrator/        # State machine, executor, emergency stop, planner
+│   ├── workflows/           # Composable WorkflowEngine, Checkpoints, CrossAppRecipes
 │   ├── context/             # Hinglish normalizer and session context
 │   ├── llm/                 # Model provider abstractions (Gemini, OpenAI, Mock)
 │   ├── config.py            # Settings loader & validation
 │   └── memory/              # Context & memory structures
+├── integrations/
+│   ├── youtube/             # YouTube search, playback & verification
+│   ├── gmail/               # Gmail triage, categorizer & safe cleanup
+│   ├── linkedin/            # LinkedIn draft generator & post publisher
+│   ├── github/              # GitHub repo inspection, issue tracker & file ops
+│   └── research/            # Multi-source web search & report generation
 ├── security/
 │   ├── permissions/         # Risk classification & approval flow engine
 │   ├── sandbox/             # Command risk classifier & path safety
 │   └── audit/               # JSONL audit logger with secret redaction
 ├── tools/
 │   ├── base.py              # BaseTool contract & ToolResult
-│   ├── registry.py          # Central registry with timeout & verification
+│   ├── registry.py          # Central registry with timeout & verification (119 tools)
+│   ├── coding/              # 13 Coding tools (detect, search, patch, test, error)
+│   ├── presentation/        # 3 Presentation tools (build deck, pitches, judge QA)
+│   ├── documentation/       # 3 Documentation tools (README, API docs, ADR)
+│   ├── browser/             # 15 Browser tools (nav, click, type, tabs, summarize)
 │   ├── desktop/             # OS abstraction (Windows 11), WindowManager, InputController
 │   ├── computer/            # Foundation computer & process tools
 │   ├── filesystem/          # List, read, write, safe delete
 │   └── terminal/            # Sandboxed shell command execution
 ├── voice/                   # Wake word, faster-whisper STT, edge-tts TTS, pipeline
-├── tests/                   # Full pytest automated test suite
+├── tests/                   # Full pytest automated test suite (104 tests passing)
 ├── docs/                    # Complete architecture, agents, tools & security docs
-├── .env.example             # Configuration template
+├── workspace/               # Isolated outputs and test fixtures
 ├── pyproject.toml           # Python dependencies & build config
 └── main.py                  # Main CLI and server entrypoint
 ```
@@ -202,6 +235,9 @@ Run the complete test suite:
 - [Voice System](docs/VOICE.md)
 - [Browser Agent Design](docs/BROWSER.md)
 - [Android Companion Bridge](docs/ANDROID.md)
+- [Device Bridge Specification](docs/DEVICE_BRIDGE.md)
+- [Phone Security & Privacy Model](docs/PHONE_SECURITY.md)
+- [Mobile Setup & Physical Pairing](docs/MOBILE_SETUP.md)
 - [Memory Hierarchy](docs/MEMORY.md)
 - [Development Guide](docs/DEVELOPMENT.md)
 - [Testing & Quality Assurance](docs/TESTING.md)

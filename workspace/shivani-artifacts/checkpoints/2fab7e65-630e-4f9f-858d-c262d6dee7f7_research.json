@@ -1,0 +1,41 @@
+{
+  "checkpoint_id": "2fab7e65-630e-4f9f-858d-c262d6dee7f7",
+  "stage": "research",
+  "timestamp": "2026-09-24T08:00:06.580209+00:00",
+  "data": {
+    "stage": "research",
+    "step_index": 0,
+    "context_data": {
+      "status": "success",
+      "step_research.status": "success",
+      "query": "Automated verification of business documents",
+      "step_research.query": "Automated verification of business documents",
+      "count": 1,
+      "step_research.count": 1,
+      "sources": [
+        {
+          "id": "src_1",
+          "title": "Recent Advances in Automated verification of business documents",
+          "url": "https://arxiv.org/abs/search?query=Automated verification of business documents",
+          "publisher": "arXiv / Academic",
+          "date": "2026-09-24",
+          "snippet": "Comprehensive survey on Automated verification of business documents methodology and performance.",
+          "relevance": 0.95
+        }
+      ],
+      "step_research.sources": [
+        {
+          "id": "src_1",
+          "title": "Recent Advances in Automated verification of business documents",
+          "url": "https://arxiv.org/abs/search?query=Automated verification of business documents",
+          "publisher": "arXiv / Academic",
+          "date": "2026-09-24",
+          "snippet": "Comprehensive survey on Automated verification of business documents methodology and performance.",
+          "relevance": 0.95
+        }
+      ],
+      "verified": true,
+      "step_research.verified": true
+    }
+  }
+}

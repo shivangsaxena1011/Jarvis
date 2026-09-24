@@ -153,6 +153,69 @@ from tools.integrations import (
     ContentGeneratePresentationTool,
 )
 
+# Phase 6: Coding, Presentation & Documentation Agents and Tools
+from core.artifacts.manager import ArtifactManager
+from agents.coding.agent import CodingAgent
+from agents.research.agent import ResearchAgent
+from agents.presentation.agent import PresentationAgent
+from agents.documentation.agent import DocumentationAgent
+
+from tools.coding import (
+    CodingInspectProjectTool,
+    CodingSearchCodeTool,
+    CodingFindSymbolTool,
+    CodingReadCodeFileTool,
+    CodingApplyPatchTool,
+    CodingCreateFileTool,
+    CodingRunTestsTool,
+    CodingRunBuildTool,
+    CodingAnalyzeErrorTool,
+    CodingGitStatusTool,
+    CodingGitDiffTool,
+    CodingGitCommitTool,
+    CodingGitPushTool,
+)
+from tools.presentation import (
+    PresentationGenerateDeckTool,
+    PresentationGeneratePitchTool,
+    PresentationGenerateQATool,
+)
+from tools.documentation import (
+    DocumentationGenerateReadmeTool,
+    DocumentationGenerateApiDocsTool,
+    DocumentationGenerateArchDocTool,
+)
+
+# Phase 7: Android Phone Agent & Device Bridge
+from core.bridge.device_bridge import DeviceBridge
+from core.bridge.mock_device import MockAndroidDevice
+from core.bridge.models import DeviceIdentity
+from agents.phone.agent import PhoneAgent
+from tools.android import (
+    AndroidGetDeviceStatusTool,
+    AndroidPairDeviceTool,
+    AndroidDisconnectDeviceTool,
+    AndroidLaunchAppTool,
+    AndroidCloseAppTool,
+    AndroidOpenSettingsTool,
+    AndroidPressHomeTool,
+    AndroidPressBackTool,
+    AndroidScreenshotTool,
+    AndroidGetVisibleUITool,
+    AndroidTapTool,
+    AndroidLongPressTool,
+    AndroidSwipeTool,
+    AndroidTypeTool,
+    AndroidListPhotosTool,
+    AndroidSelectPhotoTool,
+    AndroidTransferFileTool,
+    AndroidGetNotificationsTool,
+    AndroidReadClipboardTool,
+    AndroidWriteClipboardTool,
+    AndroidPrepareSocialActionTool,
+    AndroidExecuteSocialActionTool,
+)
+
 
 class Orchestrator:
     def __init__(
@@ -187,14 +250,44 @@ class Orchestrator:
         self.linkedin_service = LinkedInService(browser_agent=self.browser_agent)
         self.github_service = GitHubService(token=self.settings.GITHUB_TOKEN)
         self.research_service = ResearchService(browser_agent=self.browser_agent, output_dir=self.settings.RESEARCH_OUTPUT_DIR)
-        self.workflow_engine = WorkflowEngine(tool_registry=self.tools, permission_engine=self.permissions, event_bus=self.events)
+        
+        # Phase 6: Artifact Manager, Coding, Research, Presentation & Documentation Agents
+        self.artifact_manager = ArtifactManager()
+        self.coding_agent = CodingAgent()
+        self.research_agent = ResearchAgent(research_service=self.research_service, artifact_manager=self.artifact_manager)
+        self.presentation_agent = PresentationAgent(artifact_manager=self.artifact_manager)
+        self.documentation_agent = DocumentationAgent(artifact_manager=self.artifact_manager)
+        
+        # Phase 7: Android Phone Agent & Secure Device Bridge
+        self.device_bridge = DeviceBridge()
+        self.mock_android_device = MockAndroidDevice()
+        self.device_bridge.register_transport_handler(self.mock_android_device.handle_command)
+        # Pre-register default mock device for seamless local/testing operation
+        default_dev = DeviceIdentity(
+            device_id="shivani-android-001",
+            device_name="Shivani Phone",
+            pairing_state="paired",
+            connection_status="connected",
+            battery_level=88
+        )
+        self.device_bridge.register_paired_device(default_dev)
+        self.phone_agent = PhoneAgent(bridge=self.device_bridge)
+
+        self.workflow_engine = WorkflowEngine(
+            tool_registry=self.tools,
+            permission_engine=self.permissions,
+            event_bus=self.events,
+            browser_agent=self.browser_agent,
+            os_adapter=self.os_adapter,
+            artifact_manager=self.artifact_manager
+        )
         
         self.planner = TaskPlanner(self.llm, self.tools)
         self.executor = TaskExecutor(self.tools, self.emergency, event_bus=self.events)
 
         self._tasks: Dict[str, Task] = {}
 
-        # Auto-register Phase 1, Phase 3, Phase 4, and Phase 5 tools
+        # Auto-register Phase 1, Phase 3, Phase 4, Phase 5, Phase 6, and Phase 7 tools
         self._register_default_tools()
 
     def _register_default_tools(self) -> None:
@@ -321,6 +414,51 @@ class Orchestrator:
             ResearchOpenSourceTool(research_service=self.research_service),
             ResearchSummarizeTool(research_service=self.research_service),
             ResearchSaveReportTool(research_service=self.research_service),
+            # Phase 6: Coding tools
+            CodingInspectProjectTool(coding_agent=self.coding_agent),
+            CodingSearchCodeTool(coding_agent=self.coding_agent),
+            CodingFindSymbolTool(coding_agent=self.coding_agent),
+            CodingReadCodeFileTool(coding_agent=self.coding_agent),
+            CodingApplyPatchTool(coding_agent=self.coding_agent),
+            CodingCreateFileTool(coding_agent=self.coding_agent),
+            CodingRunTestsTool(coding_agent=self.coding_agent),
+            CodingRunBuildTool(coding_agent=self.coding_agent),
+            CodingAnalyzeErrorTool(coding_agent=self.coding_agent),
+            CodingGitStatusTool(coding_agent=self.coding_agent),
+            CodingGitDiffTool(coding_agent=self.coding_agent),
+            CodingGitCommitTool(coding_agent=self.coding_agent),
+            CodingGitPushTool(coding_agent=self.coding_agent),
+            # Phase 6: Presentation tools
+            PresentationGenerateDeckTool(presentation_agent=self.presentation_agent),
+            PresentationGeneratePitchTool(presentation_agent=self.presentation_agent),
+            PresentationGenerateQATool(presentation_agent=self.presentation_agent),
+            # Phase 6: Documentation tools
+            DocumentationGenerateReadmeTool(doc_agent=self.documentation_agent),
+            DocumentationGenerateApiDocsTool(doc_agent=self.documentation_agent),
+            DocumentationGenerateArchDocTool(doc_agent=self.documentation_agent),
+            # Phase 7: Android Phone tools
+            AndroidGetDeviceStatusTool(phone_agent=self.phone_agent),
+            AndroidPairDeviceTool(bridge=self.device_bridge),
+            AndroidDisconnectDeviceTool(bridge=self.device_bridge),
+            AndroidLaunchAppTool(phone_agent=self.phone_agent),
+            AndroidCloseAppTool(phone_agent=self.phone_agent),
+            AndroidOpenSettingsTool(phone_agent=self.phone_agent),
+            AndroidPressHomeTool(phone_agent=self.phone_agent),
+            AndroidPressBackTool(phone_agent=self.phone_agent),
+            AndroidScreenshotTool(phone_agent=self.phone_agent),
+            AndroidGetVisibleUITool(phone_agent=self.phone_agent),
+            AndroidTapTool(phone_agent=self.phone_agent),
+            AndroidLongPressTool(phone_agent=self.phone_agent),
+            AndroidSwipeTool(phone_agent=self.phone_agent),
+            AndroidTypeTool(phone_agent=self.phone_agent),
+            AndroidListPhotosTool(phone_agent=self.phone_agent),
+            AndroidSelectPhotoTool(phone_agent=self.phone_agent),
+            AndroidTransferFileTool(phone_agent=self.phone_agent),
+            AndroidGetNotificationsTool(phone_agent=self.phone_agent),
+            AndroidReadClipboardTool(phone_agent=self.phone_agent),
+            AndroidWriteClipboardTool(phone_agent=self.phone_agent),
+            AndroidPrepareSocialActionTool(phone_agent=self.phone_agent),
+            AndroidExecuteSocialActionTool(phone_agent=self.phone_agent),
         ]
         for t in default_tools:
             self.tools.register(t)
@@ -435,6 +573,11 @@ class Orchestrator:
 
         self.audit.log_event("emergency_stop_triggered", details={"tasks_cancelled": count})
         self.events.publish(EventType.TASK_CANCELLED, data={"cancelled_count": count, "emergency": True})
+        try:
+            if hasattr(self, "phone_agent") and self.phone_agent:
+                self.phone_agent.emergency_stop()
+        except Exception:
+            pass
         return count
 
     async def health_check(self) -> Dict[str, Any]:
@@ -471,6 +614,10 @@ class Orchestrator:
     def get_workflow(self, workflow_id: str) -> Optional[Workflow]:
         """Retrieves a tracked workflow by id."""
         return self.workflow_engine.get_workflow(workflow_id)
+
+    async def resume_workflow_from_checkpoint(self, workflow_id: str, stage: Optional[str] = None) -> WorkflowResult:
+        """Resumes a workflow from its latest checkpoint or a specific stage."""
+        return await self.workflow_engine.resume_from_checkpoint(workflow_id, stage=stage)
 
     async def shutdown(self) -> None:
         """Gracefully stops all active tasks and cleans up browser sessions."""

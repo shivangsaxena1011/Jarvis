@@ -229,6 +229,70 @@ class CrossAppRecipes:
             steps=steps
         )
 
+    @staticmethod
+    def phone_photo_to_linkedin(topic: str, photo_query: str = "hackathon") -> Workflow:
+        """
+        Recipe 6: Phone Photo to LinkedIn Showcase Flow
+        1. Search phone photos matching query (e.g. 'hackathon')
+        2. Transfer selected photo securely to local laptop workspace
+        3. Synthesize LinkedIn post draft highlighting photo & topic
+        4. Prepare LinkedIn draft
+        5. (Approval Gate) Publish post with photo preview
+        """
+        steps = [
+            WorkflowStep(
+                id="step_phone_find_photo",
+                description=f"Search user photos on Android phone matching '{photo_query}'",
+                agent="phone",
+                tool="android.list_photos",
+                input={"query": photo_query, "limit": 5},
+                expected_output="Matching photo candidates loaded",
+                permission=RiskLevel.SAFE
+            ),
+            WorkflowStep(
+                id="step_phone_transfer_photo",
+                description="Transfer selected photo to laptop workspace for publication",
+                agent="phone",
+                tool="android.transfer_file",
+                input={"photo_id": "photo-101"},
+                expected_output="Local file path for transferred photo",
+                permission=RiskLevel.SAFE
+            ),
+            WorkflowStep(
+                id="step_gen_content",
+                description=f"Generate professional LinkedIn post draft for '{topic}'",
+                agent="content",
+                tool="content.generate_linkedin_post",
+                input={"project_name": topic},
+                expected_output="LinkedIn draft text generated",
+                permission=RiskLevel.SAFE
+            ),
+            WorkflowStep(
+                id="step_prepare_post",
+                description="Prepare LinkedIn post in DRAFT mode with transferred photo",
+                agent="linkedin",
+                tool="linkedin.prepare_post",
+                input={"post_text": "{content}", "image_path": "{local_path}"},
+                expected_output="Draft created with unique ID",
+                permission=RiskLevel.SAFE
+            ),
+            WorkflowStep(
+                id="step_publish_post",
+                description="Publish post to LinkedIn feed (Requires Explicit User Approval)",
+                agent="linkedin",
+                tool="linkedin.publish_post",
+                input={"draft_id": "{draft_id}"},
+                expected_output="Post published and verified",
+                permission=RiskLevel.CRITICAL,
+                requires_approval=True
+            ),
+        ]
+        return Workflow(
+            name="Phone Photo to LinkedIn",
+            description=f"Cross-device pipeline: Find photo on phone for '{topic}', transfer to laptop, and draft LinkedIn post.",
+            steps=steps
+        )
+
 
 # Convenience function aliases
 def create_project_to_linkedin_workflow(project_name: str, image_path: Optional[str] = None) -> Workflow:
@@ -254,4 +318,96 @@ def create_research_workflow(topic: str = "AI Agents", output_dir: Optional[str]
 
 def create_github_inspect_and_run_workflow(repo_name_or_query: str) -> Workflow:
     return CrossAppRecipes.github_inspect_and_run(repo_name_or_query)
+
+
+def create_hackathon_project_workflow(
+    project_name: str,
+    project_path: str,
+    problem_statement: str
+) -> Workflow:
+    """
+    Recipe 5: Unified Professional Hackathon Master Workflow
+    Chains Research -> Architecture -> Implementation Inspection -> Testing -> Documentation -> Presentation
+    with stage checkpointing.
+    """
+    steps = [
+        WorkflowStep(
+            id="step_research",
+            stage="research",
+            description=f"Conduct multi-source research on {problem_statement}",
+            agent="research",
+            tool="research.search",
+            input={"query": problem_statement, "limit": 4},
+            expected_output="Gathered authoritative sources",
+            permission=RiskLevel.SAFE
+        ),
+        WorkflowStep(
+            id="step_architecture",
+            stage="architecture",
+            description=f"Synthesize architecture document for {project_name}",
+            agent="documentation",
+            tool="documentation.generate_architecture_doc",
+            input={"project_path": project_path},
+            expected_output="Architecture decision record",
+            permission=RiskLevel.SAFE
+        ),
+        WorkflowStep(
+            id="step_inspect_impl",
+            stage="implementation",
+            description=f"Inspect implementation and detect stack for {project_name}",
+            agent="coding",
+            tool="coding.inspect_project",
+            input={"project_path": project_path},
+            expected_output="Stack specifications",
+            permission=RiskLevel.SAFE
+        ),
+        WorkflowStep(
+            id="step_run_tests",
+            stage="testing",
+            description=f"Execute automated test suite for {project_name}",
+            agent="coding",
+            tool="coding.run_tests",
+            input={"project_path": project_path},
+            expected_output="Test execution report",
+            permission=RiskLevel.SAFE
+        ),
+        WorkflowStep(
+            id="step_documentation",
+            stage="documentation",
+            description=f"Generate production README.md for {project_name}",
+            agent="documentation",
+            tool="documentation.generate_readme",
+            input={"project_path": project_path},
+            expected_output="Generated README",
+            permission=RiskLevel.SAFE
+        ),
+        WorkflowStep(
+            id="step_presentation",
+            stage="presentation",
+            description=f"Build PowerPoint pitch deck for {project_name}",
+            agent="presentation",
+            tool="presentation.generate_deck",
+            input={
+                "title": f"{project_name} Pitch Deck",
+                "project_name": project_name,
+                "problem_statement": problem_statement,
+                "solution_summary": f"Autonomous AI-powered solution for {problem_statement}",
+                "tech_stack": ["Python", "FastAPI", "AI/ML"],
+                "key_features": ["100% verified execution", "Stage checkpointing", "Cross-agent workflows"]
+            },
+            expected_output="Generated presentation artifact (.pptx)",
+            permission=RiskLevel.SAFE
+        )
+    ]
+    return Workflow(
+        name=f"Hackathon: {project_name}",
+        description=f"End-to-end hackathon pipeline for {project_name}: research, architecture, implementation, test, documentation, and deck.",
+        steps=steps
+    )
+
+
+def create_phone_photo_to_linkedin_workflow(topic: str, photo_query: str = "hackathon") -> Workflow:
+    """Helper factory for Recipe 6."""
+    return CrossAppRecipes.phone_photo_to_linkedin(topic=topic, photo_query=photo_query)
+
 
