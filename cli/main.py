@@ -265,6 +265,17 @@ def main(argv: Optional[list] = None) -> int:
     review_sub = review_parser.add_subparsers(dest="review_action")
     review_sub.add_parser("week", help="View weekly review")
 
+    # Phase 17: computer
+    comp_parser = subparsers.add_parser("computer", help="Computer autonomy and desktop operations")
+    comp_sub = comp_parser.add_subparsers(dest="computer_action")
+    comp_sub.add_parser("status", help="View computer autonomy status")
+    comp_sub.add_parser("observe", help="Capture and display desktop observation")
+    comp_sub.add_parser("windows", help="List visible desktop windows")
+    comp_sub.add_parser("monitors", help="List display monitors")
+    comp_sub.add_parser("doctor", help="Run computer autonomy diagnostics")
+    comp_sub.add_parser("test", help="Execute synthetic closed-loop GUI test")
+    comp_sub.add_parser("stop", help="Trigger emergency stop")
+
     args = parser.parse_args(argv)
 
     if args.command == "doctor":
@@ -320,6 +331,32 @@ def main(argv: Optional[list] = None) -> int:
     elif args.command == "automation":
         from cli.automation_cli import handle_automation_cli
         return handle_automation_cli(args)
+    elif args.command == "computer":
+        from cli.computer_cli import (
+            run_computer_status,
+            run_computer_observe,
+            run_computer_windows,
+            run_computer_monitors,
+            run_computer_doctor,
+            run_computer_test,
+            run_computer_stop,
+        )
+        action = getattr(args, "computer_action", "status") or "status"
+        if action == "status":
+            run_computer_status()
+        elif action == "observe":
+            run_computer_observe()
+        elif action == "windows":
+            run_computer_windows()
+        elif action == "monitors":
+            run_computer_monitors()
+        elif action == "doctor":
+            run_computer_doctor()
+        elif action == "test":
+            run_computer_test()
+        elif action == "stop":
+            run_computer_stop()
+        return 0
     else:
         parser.print_help()
         return 0

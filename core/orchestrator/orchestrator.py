@@ -312,6 +312,14 @@ from tools.productivity import (
     PlanTodayTool,
 )
 
+# Phase 17: Advanced Computer Autonomy & GUI Reasoning
+from core.computer.agent import ComputerAutonomyAgent
+from tools.computer.autonomy_tools import (
+    ComputerObserveTool,
+    ComputerActTool,
+    ComputerStopTool,
+)
+
 
 
 class Orchestrator:
@@ -341,6 +349,7 @@ class Orchestrator:
         self.context = SessionContext()
         self.ui_context = CurrentUIContext()
         self.computer_agent = ComputerAgent(adapter=self.os_adapter, context=self.ui_context)
+        self.computer_autonomy = ComputerAutonomyAgent(os_adapter=self.os_adapter)
         self.browser_agent = browser_agent or BrowserAgent()
 
         # Phase 5: Productivity services, indexer, content agent & workflow engine
@@ -528,6 +537,16 @@ class Orchestrator:
                 risk_tier="SAFE",
             ),
             instance=self.project_agent,
+        )
+        self.agent_registry.register_agent(
+            AgentDescriptor(
+                name="computer_autonomy_agent",
+                description="Operates Windows desktop via closed-loop visual and semantic autonomy",
+                capabilities=["computer_autonomy", "gui_reasoning", "desktop_control", "uia"],
+                keywords=["observe desktop", "click button", "organize files", "run in excel", "fix in vscode"],
+                risk_tier="SAFE",
+            ),
+            instance=self.computer_autonomy,
         )
 
     def _register_default_tools(self) -> None:
@@ -738,6 +757,10 @@ class Orchestrator:
             TaskCompleteTool(productivity=self.productivity),
             ProjectContextTool(productivity=self.productivity),
             PlanTodayTool(productivity=self.productivity),
+            # Phase 17: Computer Autonomy tools
+            ComputerObserveTool(),
+            ComputerActTool(),
+            ComputerStopTool(),
         ]
         for t in default_tools:
             self.tools.register(t)

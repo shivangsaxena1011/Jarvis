@@ -1210,6 +1210,163 @@ async def sse_events(request: Request):
 
 
 # ==============================================================================
+# PHASE 17: COMPUTER AUTONOMY & GUI REASONING REST ENDPOINTS
+# ==============================================================================
+
+class ComputerObserveRequest(BaseModel):
+    capture_image: bool = False
+
+
+class ComputerActRequest(BaseModel):
+    action_type: str
+    target: Optional[str] = None
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+    expected_state: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ComputerPlanRequest(BaseModel):
+    goal: str
+    context: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ComputerExecuteRequest(BaseModel):
+    task_id: str
+    steps: List[Dict[str, Any]] = Field(default_factory=list)
+    max_actions: int = 25
+
+
+@app.post("/api/computer/observe")
+async def computer_observe_endpoint(req: Optional[ComputerObserveRequest] = None):
+    capture = req.capture_image if req else False
+    obs = await orchestrator.computer_autonomy.observe(capture_image=capture)
+    return obs.model_dump()
+
+
+@app.post("/api/computer/act")
+async def computer_act_endpoint(req: ComputerActRequest):
+    from core.computer.models import ActionType, ComputerAction
+    atype = ActionType(req.action_type.lower())
+    action = ComputerAction(
+        action_type=atype,
+        target=req.target,
+        parameters=req.parameters,
+        expected_state=req.expected_state,
+    )
+    res = await orchestrator.computer_autonomy.execute_action(action)
+    return res.model_dump()
+
+
+@app.post("/api/computer/plan")
+async def computer_plan_endpoint(req: ComputerPlanRequest):
+    obs = await orchestrator.computer_autonomy.observe(capture_image=False)
+    # Simple semantic decomposition into steps
+    steps = [
+        {"type": "observe", "description": "Observe active desktop"},
+        {"type": "action", "description": f"Execute plan for goal: {req.goal}"},
+    ]
+    return {"goal": req.goal, "active_window": obs.active_window, "steps": steps}
+
+
+@app.post("/api/computer/execute")
+async def computer_execute_endpoint(req: ComputerExecuteRequest):
+    res = await orchestrator.computer_autonomy.execute_task_workflow(
+        task_id=req.task_id,
+        steps=req.steps,
+        max_actions=req.max_actions,
+    )
+    return res
+
+
+@app.post("/api/computer/stop")
+async def computer_stop_endpoint():
+    orchestrator.computer_autonomy.emergency_stop()
+    return {"emergency_stopped": True, "message": "Emergency stop invoked."}
+
+
+@app.get("/api/computer/state")
+async def computer_state_endpoint():
+    agent = orchestrator.computer_autonomy
+    return {
+        "emergency_stopped": agent.lock_manager.is_emergency_stopped,
+        "manual_takeover": agent.lock_manager.is_manual_takeover,
+        "active_observation": agent._current_observation.model_dump() if agent._current_observation else None,
+    }
+
+
+@app.get("/api/computer/windows")
+async def computer_windows_endpoint():
+    windows = await orchestrator.os_adapter.list_windows(visible_only=True)
+    return [w.model_dump() for w in windows]
+
+
+@app.get("/api/computer/monitors")
+async def computer_monitors_endpoint():
+    obs = await orchestrator.computer_autonomy.observe(capture_image=False)
+    return [m.model_dump() for m in obs.monitors]
+
+
+@app.get("/api/computer/context")
+async def computer_context_endpoint():
+    obs = await orchestrator.computer_autonomy.observe(capture_image=False)
+    return obs.application_context.model_dump()
+
+
+# Checkpointed long-horizon computer tasks
+_active_computer_tasks: Dict[str, Dict[str, Any]] = {}
+
+
+@app.post("/api/computer/tasks")
+async def computer_tasks_create_endpoint(req: ComputerExecuteRequest):
+    _active_computer_tasks[req.task_id] = {
+        "task_id": req.task_id,
+        "status": "RUNNING",
+        "steps": req.steps,
+        "created_at": time.time(),
+    }
+    # Run in background or synchronously
+    asyncio.create_task(
+        orchestrator.computer_autonomy.execute_task_workflow(
+            task_id=req.task_id,
+            steps=req.steps,
+            max_actions=req.max_actions,
+        )
+    )
+    return {"task_id": req.task_id, "status": "RUNNING"}
+
+
+@app.get("/api/computer/tasks/{task_id}")
+async def computer_tasks_get_endpoint(task_id: str):
+    task = _active_computer_tasks.get(task_id)
+    if not task:
+        ckpt = orchestrator.computer_autonomy.checkpoint_engine.get_latest_checkpoint(task_id)
+        if ckpt:
+            return {"task_id": task_id, "checkpoint": ckpt.model_dump(), "status": "CHECKPOINTED"}
+        raise HTTPException(status_code=404, detail="Computer task not found")
+    return task
+
+
+@app.post("/api/computer/tasks/{task_id}/pause")
+async def computer_tasks_pause_endpoint(task_id: str):
+    if task_id in _active_computer_tasks:
+        _active_computer_tasks[task_id]["status"] = "PAUSED"
+    return {"task_id": task_id, "status": "PAUSED"}
+
+
+@app.post("/api/computer/tasks/{task_id}/resume")
+async def computer_tasks_resume_endpoint(task_id: str):
+    if task_id in _active_computer_tasks:
+        _active_computer_tasks[task_id]["status"] = "RUNNING"
+    return {"task_id": task_id, "status": "RUNNING"}
+
+
+@app.post("/api/computer/tasks/{task_id}/cancel")
+async def computer_tasks_cancel_endpoint(task_id: str):
+    if task_id in _active_computer_tasks:
+        _active_computer_tasks[task_id]["status"] = "CANCELLED"
+    return {"task_id": task_id, "status": "CANCELLED"}
+
+
+# ==============================================================================
 # STATIC ASSETS & INDEX
 # ==============================================================================
 

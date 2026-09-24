@@ -20,6 +20,7 @@ from tools.desktop.clipboard import ClipboardManager
 from tools.desktop.os.base import OperatingSystemAdapter
 from tools.desktop.os.factory import get_os_adapter
 from core.config import get_settings
+from core.computer.agent import ComputerAutonomyAgent
 
 
 class ComputerAgent:
@@ -41,6 +42,7 @@ class ComputerAgent:
         self.clipboard = ClipboardManager(self.adapter)
         self.observer = ScreenObserver(screen_capture=self.screen, window_manager=self.windows)
         self.browser = BrowserAgent(self.adapter)
+        self.autonomy = ComputerAutonomyAgent(os_adapter=self.adapter)
 
     async def observe(self, capture_image: bool = True) -> DesktopObservation:
         """Observes the current desktop environment and updates UI context."""

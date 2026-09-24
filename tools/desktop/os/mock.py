@@ -237,3 +237,6 @@ class MockOSAdapter(OperatingSystemAdapter):
 
     async def get_screen_size(self) -> Dict[str, int]:
         return {"width": 1920, "height": 1080}
+
+
+MockOperatingSystemAdapter = MockOSAdapter
