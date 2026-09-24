@@ -229,6 +229,42 @@ def main(argv: Optional[list] = None) -> int:
 
     auto_doc_p = auto_sub.add_parser("doctor", help="Inspect automation subsystem health and metrics")
 
+    # Phase 16: project
+    project_parser = subparsers.add_parser("project", help="Manage projects and project context")
+    project_sub = project_parser.add_subparsers(dest="project_action")
+    proj_list_p = project_sub.add_parser("list", help="List all projects")
+    proj_list_p.add_argument("--status", default=None, help="Filter by status")
+    proj_create_p = project_sub.add_parser("create", help="Create a project")
+    proj_create_p.add_argument("name", help="Project name")
+    proj_create_p.add_argument("--description", "-d", default="", help="Description")
+    proj_create_p.add_argument("--path", default=None, help="Local codebase path")
+    proj_ctx_p = project_sub.add_parser("context", help="View project context snapshot")
+    proj_ctx_p.add_argument("name_or_id", help="Project name or ID")
+    proj_stat_p = project_sub.add_parser("status", help="View project health and status")
+    proj_stat_p.add_argument("name_or_id", help="Project name or ID")
+
+    # Phase 16: goal
+    goal_parser = subparsers.add_parser("goal", help="Manage strategic personal goals")
+    goal_sub = goal_parser.add_subparsers(dest="goal_action")
+    goal_sub.add_parser("list", help="List all goals")
+    goal_create_p = goal_sub.add_parser("create", help="Create a goal")
+    goal_create_p.add_argument("title", help="Goal title")
+    goal_create_p.add_argument("--category", "-c", default="General", help="Category")
+    goal_create_p.add_argument("--due", default=None, help="Target completion date")
+    goal_prog_p = goal_sub.add_parser("progress", help="View goal progress")
+    goal_prog_p.add_argument("id", help="Goal ID")
+
+    # Phase 16: plan
+    plan_parser = subparsers.add_parser("plan", help="Daily and weekly planning")
+    plan_sub = plan_parser.add_subparsers(dest="plan_action")
+    plan_today_p = plan_sub.add_parser("today", help="Generate proposed day plan")
+    plan_today_p.add_argument("--hours", type=float, default=8.0, help="Available hours today")
+
+    # Phase 16: review
+    review_parser = subparsers.add_parser("review", help="Productivity reviews and retrospectives")
+    review_sub = review_parser.add_subparsers(dest="review_action")
+    review_sub.add_parser("week", help="View weekly review")
+
     args = parser.parse_args(argv)
 
     if args.command == "doctor":
@@ -240,7 +276,31 @@ def main(argv: Optional[list] = None) -> int:
     elif args.command == "logs":
         return run_logs_cmd(lines=args.lines)
     elif args.command == "task":
+        if args.query.lower() in ("list", "create", "complete", "defer", "search") or any(args.query.startswith(p) for p in ("list ", "create ", "complete ", "defer ", "search ")):
+            from cli.productivity_cli import handle_task_cli
+            parts = args.query.split(" ", 1)
+            args.task_action = parts[0].lower()
+            if len(parts) > 1:
+                if args.task_action == "create":
+                    args.title = parts[1]
+                elif args.task_action in ("complete", "defer"):
+                    args.id = parts[1]
+                elif args.task_action == "search":
+                    args.query = parts[1]
+            return handle_task_cli(args)
         return asyncio.run(run_task_cmd(args.query, safe_mode=args.safe_mode, demo_mode=args.demo))
+    elif args.command == "project":
+        from cli.productivity_cli import handle_project_cli
+        return handle_project_cli(args)
+    elif args.command == "goal":
+        from cli.productivity_cli import handle_goal_cli
+        return handle_goal_cli(args)
+    elif args.command == "plan":
+        from cli.productivity_cli import handle_plan_cli
+        return handle_plan_cli(args)
+    elif args.command == "review":
+        from cli.productivity_cli import handle_review_cli
+        return handle_review_cli(args)
     elif args.command == "start":
         settings = get_settings()
         import uvicorn

@@ -301,6 +301,17 @@ from tools.skill_tools import (
     AdapterListTool,
 )
 
+# Phase 16: Productivity OS & Project Agent
+from core.productivity.orchestrator import ProductivityOrchestrator
+from agents.project.project_agent import ProjectAgent
+from tools.productivity import (
+    TaskCreateTool,
+    TaskListTool,
+    TaskCompleteTool,
+    ProjectContextTool,
+    PlanTodayTool,
+)
+
 
 
 class Orchestrator:
@@ -368,6 +379,11 @@ class Orchestrator:
         self.resources = ResourceManager()
         self.notifications = NotificationCenter(event_bus=self.events)
         self.scheduler = SchedulerService()
+
+        # Phase 16: Personal Productivity OS & Project Agent
+        self.productivity = ProductivityOrchestrator(notification_center=self.notifications)
+        self.project_agent = ProjectAgent(productivity=self.productivity)
+
         self.context_builder = ContextBuilder(
             memory_manager=self.memory,
             os_adapter=self.os_adapter,
@@ -415,7 +431,6 @@ class Orchestrator:
             notification_center=self.notifications,
             orchestrator=self,
         )
-
 
         # Register Emergency Abort Callbacks
         self.emergency.register_abort_callback(
@@ -503,6 +518,16 @@ class Orchestrator:
                 risk_tier="SAFE",
             ),
             instance=self.phone_agent,
+        )
+        self.agent_registry.register_agent(
+            AgentDescriptor(
+                name="project_agent",
+                description="Coordinates project context, milestones, task decomposition, and blockers",
+                capabilities=["projects", "tasks", "goals", "planning", "milestones"],
+                keywords=["project", "milestone", "plan my day", "blocker", "retrospective"],
+                risk_tier="SAFE",
+            ),
+            instance=self.project_agent,
         )
 
     def _register_default_tools(self) -> None:
@@ -707,6 +732,12 @@ class Orchestrator:
             AutomationRunTool(engine=self.automation),
             AutomationPauseTool(engine=self.automation),
             AutomationResumeTool(engine=self.automation),
+            # Phase 16: Productivity OS tools
+            TaskCreateTool(productivity=self.productivity),
+            TaskListTool(productivity=self.productivity),
+            TaskCompleteTool(productivity=self.productivity),
+            ProjectContextTool(productivity=self.productivity),
+            PlanTodayTool(productivity=self.productivity),
         ]
         for t in default_tools:
             self.tools.register(t)

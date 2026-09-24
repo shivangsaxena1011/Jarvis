@@ -143,6 +143,7 @@
           <li><button class="nav-item" data-view="memory">💾 Memory</button></li>
           <li><button class="nav-item" data-view="skills">🧩 Universal Skills</button></li>
           <li><button class="nav-item" data-view="automations">⚡ Automations & Routines</button></li>
+          <li><button class="nav-item" data-view="productivity">🎯 Productivity OS</button></li>
           <li><button class="nav-item" data-view="devices">📱 Android Device</button></li>
           <li><button class="nav-item" data-view="connectors">🔗 Connectors</button></li>
           <li><button class="nav-item" data-view="artifacts">📁 Artifacts</button></li>
@@ -370,6 +371,76 @@
           <!-- Tab 3: History -->
           <div class="history-list hidden" id="autoHistoryList">
             <div class="empty-state">No execution runs recorded yet.</div>
+          </div>
+        </section>
+
+        <!-- VIEW: PERSONAL PRODUCTIVITY OS -->
+        <section class="view-panel hidden" id="view-productivity" aria-label="Productivity OS">
+          <div class="panel-top-bar">
+            <h2>PERSONAL PRODUCTIVITY OS</h2>
+            <button class="btn-secondary" id="refreshProductivityBtn">🔄 Refresh</button>
+          </div>
+
+          <!-- Quick Metrics Bar -->
+          <div class="productivity-metrics-bar" style="display: flex; gap: 12px; margin-bottom: 20px;">
+            <div class="metric-card" style="flex: 1; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; text-align: center;">
+              <div class="metric-val" id="prodMetricActiveTasks" style="font-size: 20px; font-weight: bold; color: var(--accent-cyan);">0</div>
+              <div class="metric-label" style="font-size: 11px; color: var(--text-secondary);">Active Tasks</div>
+            </div>
+            <div class="metric-card" style="flex: 1; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; text-align: center;">
+              <div class="metric-val" id="prodMetricCritical" style="font-size: 20px; font-weight: bold; color: var(--accent-rose);">0</div>
+              <div class="metric-label" style="font-size: 11px; color: var(--text-secondary);">Critical Priority</div>
+            </div>
+            <div class="metric-card" style="flex: 1; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; text-align: center;">
+              <div class="metric-val" id="prodMetricOverdue" style="font-size: 20px; font-weight: bold; color: var(--accent-amber);">0</div>
+              <div class="metric-label" style="font-size: 11px; color: var(--text-secondary);">Overdue</div>
+            </div>
+            <div class="metric-card" style="flex: 1; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; text-align: center;">
+              <div class="metric-val" id="prodMetricProjects" style="font-size: 20px; font-weight: bold; color: var(--accent-emerald);">0</div>
+              <div class="metric-label" style="font-size: 11px; color: var(--text-secondary);">Active Projects</div>
+            </div>
+            <div class="metric-card" style="flex: 1; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; text-align: center;">
+              <div class="metric-val" id="prodMetricGoals" style="font-size: 20px; font-weight: bold; color: var(--accent-purple);">0</div>
+              <div class="metric-label" style="font-size: 11px; color: var(--text-secondary);">Active Goals</div>
+            </div>
+          </div>
+
+          <!-- Quick NL Task Input -->
+          <div class="builder-card" style="margin-bottom: 20px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px;">
+            <h3 style="font-size: 14px; margin-bottom: 8px;">🎯 QUICK TASK / GOAL INPUT</h3>
+            <div class="prompt-input-row" style="display: flex; gap: 8px;">
+              <input type="text" id="prodTaskInput" placeholder="e.g. 'Finish API documentation tomorrow' or 'Build OCR pipeline'" style="flex: 1; padding: 8px 12px; border-radius: 6px; background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color);" />
+              <button class="btn-primary" id="prodAddTaskBtn">Add Task</button>
+              <button class="btn-secondary" id="prodPlanDayBtn">Plan Day</button>
+            </div>
+          </div>
+
+          <!-- Productivity Subtabs -->
+          <div class="productivity-subtabs" style="display: flex; gap: 8px; margin-bottom: 16px;">
+            <button class="btn-secondary active" id="subtabTasksBtn">Tasks</button>
+            <button class="btn-secondary" id="subtabProjectsBtn">Projects</button>
+            <button class="btn-secondary" id="subtabGoalsBtn">Goals</button>
+            <button class="btn-secondary" id="subtabDayPlanBtn">Day Plan</button>
+          </div>
+
+          <!-- Tab 1: Tasks Grid -->
+          <div class="productivity-tasks-container" id="prodTasksContainer">
+            <div class="empty-state">Loading tasks...</div>
+          </div>
+
+          <!-- Tab 2: Projects Grid -->
+          <div class="productivity-projects-container hidden" id="prodProjectsContainer">
+            <div class="empty-state">Loading projects...</div>
+          </div>
+
+          <!-- Tab 3: Goals Grid -->
+          <div class="productivity-goals-container hidden" id="prodGoalsContainer">
+            <div class="empty-state">Loading goals...</div>
+          </div>
+
+          <!-- Tab 4: Day Plan Grid -->
+          <div class="productivity-plan-container hidden" id="prodPlanContainer">
+            <div class="empty-state">No day plan generated yet. Click 'Plan Day' to generate today's schedule.</div>
           </div>
         </section>
 

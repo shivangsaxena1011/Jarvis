@@ -229,6 +229,7 @@ function switchView(viewName) {
   else if (viewName === 'security') refreshSecurityView();
   else if (viewName === 'settings') refreshSettingsView();
   else if (viewName === 'automations') { loadAutomations(); loadAutomationAnalytics(); }
+  else if (viewName === 'productivity') { loadProductivityDashboard(); loadProductivityTasks(); }
 }
 
 
@@ -1363,5 +1364,281 @@ document.getElementById('subtabHistoryBtn')?.addEventListener('click', () => {
   document.getElementById('automationsGrid').classList.add('hidden');
   document.getElementById('templatesGrid').classList.add('hidden');
   loadAutomationHistory();
+});
+
+
+// ==============================================================================
+// PHASE 16: PRODUCTIVITY OS UI
+// ==============================================================================
+
+async function loadProductivityDashboard() {
+  try {
+    const res = await fetch('/api/productivity/dashboard');
+    if (!res.ok) return;
+    const data = await res.json();
+    const activeTasksEl = document.getElementById('prodMetricActiveTasks');
+    const criticalEl = document.getElementById('prodMetricCritical');
+    const overdueEl = document.getElementById('prodMetricOverdue');
+    const projectsEl = document.getElementById('prodMetricProjects');
+    const goalsEl = document.getElementById('prodMetricGoals');
+
+    if (activeTasksEl) activeTasksEl.textContent = data.active_tasks_count || 0;
+    if (criticalEl) criticalEl.textContent = data.critical_tasks_count || 0;
+    if (overdueEl) overdueEl.textContent = data.overdue_count || 0;
+    if (projectsEl) projectsEl.textContent = (data.active_projects || []).length;
+    if (goalsEl) goalsEl.textContent = (data.active_goals || []).length;
+  } catch (err) {
+    console.error('Error loading productivity dashboard', err);
+  }
+}
+
+async function loadProductivityTasks() {
+  const container = document.getElementById('prodTasksContainer');
+  if (!container) return;
+  try {
+    const res = await fetch('/api/tasks');
+    if (!res.ok) throw new Error('Failed to fetch tasks');
+    const tasks = await res.json();
+    if (!tasks || tasks.length === 0) {
+      container.innerHTML = '<div class="empty-state">No tasks found. Use the input bar above to create one.</div>';
+      return;
+    }
+
+    container.innerHTML = tasks.map(t => `
+      <div class="card" style="margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; padding: 12px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px;">
+        <div style="flex: 1;">
+          <div style="font-weight: 600; color: var(--text-primary);">${escapeHtml(t.title)}</div>
+          <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
+            <span class="badge ${t.status === 'COMPLETED' ? 'badge-green' : t.status === 'BLOCKED' ? 'badge-red' : 'badge-cyan'}">${t.status}</span>
+            <span style="margin-left: 8px;">Priority: <strong>${t.priority}</strong></span>
+            ${t.due_date ? `<span style="margin-left: 8px;">Due: <strong>${t.due_date}</strong></span>` : ''}
+          </div>
+        </div>
+        <div>
+          ${t.status !== 'COMPLETED' ? `<button class="btn-primary" style="padding: 4px 10px; font-size: 11px;" onclick="completeTaskUI('${t.id}')">✓ Complete</button>` : ''}
+          <button class="btn-danger" style="padding: 4px 8px; font-size: 11px; margin-left: 6px;" onclick="deleteTaskUI('${t.id}')">🗑️</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state error-text">Error loading tasks: ${err.message}</div>`;
+  }
+}
+
+async function loadProductivityProjects() {
+  const container = document.getElementById('prodProjectsContainer');
+  if (!container) return;
+  try {
+    const res = await fetch('/api/projects');
+    if (!res.ok) throw new Error('Failed to fetch projects');
+    const projects = await res.json();
+    if (!projects || projects.length === 0) {
+      container.innerHTML = '<div class="empty-state">No projects found.</div>';
+      return;
+    }
+
+    container.innerHTML = projects.map(p => `
+      <div class="card" style="margin-bottom: 10px; padding: 14px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h4 style="margin: 0; font-size: 15px; color: var(--accent-cyan);">${escapeHtml(p.name)}</h4>
+          <span class="badge ${p.status === 'ACTIVE' ? 'badge-green' : 'badge-amber'}">${p.status}</span>
+        </div>
+        <p style="font-size: 12px; color: var(--text-secondary); margin: 6px 0;">${escapeHtml(p.description || 'No description provided.')}</p>
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="showProjectContext('${p.id}')">Continuity Context</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state error-text">Error loading projects: ${err.message}</div>`;
+  }
+}
+
+async function loadProductivityGoals() {
+  const container = document.getElementById('prodGoalsContainer');
+  if (!container) return;
+  try {
+    const res = await fetch('/api/goals');
+    if (!res.ok) throw new Error('Failed to fetch goals');
+    const goals = await res.json();
+    if (!goals || goals.length === 0) {
+      container.innerHTML = '<div class="empty-state">No strategic goals created yet.</div>';
+      return;
+    }
+
+    container.innerHTML = goals.map(g => `
+      <div class="card" style="margin-bottom: 10px; padding: 14px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px;">
+        <div style="display: flex; justify-content: space-between;">
+          <h4 style="margin: 0; font-size: 14px; color: var(--text-primary);">${escapeHtml(g.title)}</h4>
+          <span style="font-size: 12px; font-weight: bold; color: var(--accent-purple);">${Math.round((g.progress || 0) * 100)}%</span>
+        </div>
+        <div style="margin: 8px 0; background: var(--bg-tertiary); border-radius: 4px; height: 6px; overflow: hidden;">
+          <div style="width: ${Math.round((g.progress || 0) * 100)}%; background: var(--accent-purple); height: 100%;"></div>
+        </div>
+        <div style="font-size: 11px; color: var(--text-secondary);">
+          <span>Category: ${escapeHtml(g.category)}</span>
+          ${g.target_date ? `<span style="margin-left: 12px;">Target: ${g.target_date}</span>` : ''}
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state error-text">Error loading goals: ${err.message}</div>`;
+  }
+}
+
+async function loadProductivityPlan() {
+  const container = document.getElementById('prodPlanContainer');
+  if (!container) return;
+  try {
+    const res = await fetch('/api/planning/daily', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ available_hours: 8.0 }),
+    });
+    if (!res.ok) throw new Error('Failed to generate daily plan');
+    const data = await res.json();
+    const plan = data.plan;
+
+    container.innerHTML = `
+      <div style="margin-bottom: 12px;">
+        <h4 style="margin: 0 0 4px 0;">Schedule for ${plan.date} (${plan.total_planned_minutes}m planned)</h4>
+        ${data.warning ? `<div style="color: var(--accent-amber); font-size: 12px; margin-bottom: 8px;">⚠️ ${escapeHtml(data.warning)}</div>` : ''}
+      </div>
+      <div class="timeline-blocks">
+        ${plan.time_blocks.map(b => `
+          <div style="display: flex; gap: 12px; padding: 8px; border-bottom: 1px solid var(--border-color); font-size: 12px;">
+            <div style="font-weight: bold; width: 100px; color: var(--accent-cyan);">${b.start_time} - ${b.end_time}</div>
+            <div style="flex: 1;">
+              <strong>${escapeHtml(b.title)}</strong>
+              <div style="color: var(--text-secondary); font-size: 11px;">${escapeHtml(b.category)}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state error-text">Error: ${err.message}</div>`;
+  }
+}
+
+async function completeTaskUI(taskId) {
+  try {
+    const res = await fetch(`/api/tasks/${taskId}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes: 'Completed from Web UI' }),
+    });
+    if (res.ok) {
+      loadProductivityTasks();
+      loadProductivityDashboard();
+    } else {
+      const err = await res.json();
+      alert(`Could not complete task: ${err.detail || 'Failed'}`);
+    }
+  } catch (err) {
+    alert('Network error completing task');
+  }
+}
+
+async function deleteTaskUI(taskId) {
+  if (!confirm('Are you sure you want to delete this task?')) return;
+  try {
+    const res = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+    if (res.ok) {
+      loadProductivityTasks();
+      loadProductivityDashboard();
+    }
+  } catch (err) {
+    alert('Error deleting task');
+  }
+}
+
+async function showProjectContext(projectId) {
+  try {
+    const res = await fetch(`/api/projects/${projectId}/context`);
+    if (!res.ok) return;
+    const ctx = await res.json();
+    alert(`PROJECT CONTEXT: ${ctx.project_name}\nActive Milestone: ${ctx.active_milestone}\nOpen Tasks: ${ctx.open_tasks_count}\nBlockers: ${ctx.blocked_tasks_count}`);
+  } catch (err) {
+    alert('Error loading project context');
+  }
+}
+
+// Subtab buttons
+document.getElementById('subtabTasksBtn')?.addEventListener('click', () => {
+  document.getElementById('subtabTasksBtn').classList.add('active');
+  document.getElementById('subtabProjectsBtn').classList.remove('active');
+  document.getElementById('subtabGoalsBtn').classList.remove('active');
+  document.getElementById('subtabDayPlanBtn').classList.remove('active');
+  document.getElementById('prodTasksContainer').classList.remove('hidden');
+  document.getElementById('prodProjectsContainer').classList.add('hidden');
+  document.getElementById('prodGoalsContainer').classList.add('hidden');
+  document.getElementById('prodPlanContainer').classList.add('hidden');
+  loadProductivityTasks();
+});
+
+document.getElementById('subtabProjectsBtn')?.addEventListener('click', () => {
+  document.getElementById('subtabProjectsBtn').classList.add('active');
+  document.getElementById('subtabTasksBtn').classList.remove('active');
+  document.getElementById('subtabGoalsBtn').classList.remove('active');
+  document.getElementById('subtabDayPlanBtn').classList.remove('active');
+  document.getElementById('prodProjectsContainer').classList.remove('hidden');
+  document.getElementById('prodTasksContainer').classList.add('hidden');
+  document.getElementById('prodGoalsContainer').classList.add('hidden');
+  document.getElementById('prodPlanContainer').classList.add('hidden');
+  loadProductivityProjects();
+});
+
+document.getElementById('subtabGoalsBtn')?.addEventListener('click', () => {
+  document.getElementById('subtabGoalsBtn').classList.add('active');
+  document.getElementById('subtabTasksBtn').classList.remove('active');
+  document.getElementById('subtabProjectsBtn').classList.remove('active');
+  document.getElementById('subtabDayPlanBtn').classList.remove('active');
+  document.getElementById('prodGoalsContainer').classList.remove('hidden');
+  document.getElementById('prodTasksContainer').classList.add('hidden');
+  document.getElementById('prodProjectsContainer').classList.add('hidden');
+  document.getElementById('prodPlanContainer').classList.add('hidden');
+  loadProductivityGoals();
+});
+
+document.getElementById('subtabDayPlanBtn')?.addEventListener('click', () => {
+  document.getElementById('subtabDayPlanBtn').classList.add('active');
+  document.getElementById('subtabTasksBtn').classList.remove('active');
+  document.getElementById('subtabProjectsBtn').classList.remove('active');
+  document.getElementById('subtabGoalsBtn').classList.remove('active');
+  document.getElementById('prodPlanContainer').classList.remove('hidden');
+  document.getElementById('prodTasksContainer').classList.add('hidden');
+  document.getElementById('prodProjectsContainer').classList.add('hidden');
+  document.getElementById('prodGoalsContainer').classList.add('hidden');
+  loadProductivityPlan();
+});
+
+document.getElementById('refreshProductivityBtn')?.addEventListener('click', () => {
+  loadProductivityDashboard();
+  loadProductivityTasks();
+});
+
+document.getElementById('prodAddTaskBtn')?.addEventListener('click', async () => {
+  const input = document.getElementById('prodTaskInput');
+  const title = input.value.trim();
+  if (!title) return;
+  try {
+    const res = await fetch('/api/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: title }),
+    });
+    if (res.ok) {
+      input.value = '';
+      loadProductivityTasks();
+      loadProductivityDashboard();
+    }
+  } catch (err) {
+    alert('Error creating task');
+  }
+});
+
+document.getElementById('prodPlanDayBtn')?.addEventListener('click', () => {
+  document.getElementById('subtabDayPlanBtn').click();
 });
 

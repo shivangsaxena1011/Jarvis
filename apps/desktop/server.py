@@ -29,6 +29,7 @@ from observability.health import HEALTH
 from observability.performance import PROFILER
 from notifications.center import NotificationCategory, NotificationItem
 from security.permissions.models import RiskLevel
+from core.productivity.models import TaskPriority, TaskStatus
 
 settings = get_settings()
 orchestrator = Orchestrator(settings=settings)
@@ -236,16 +237,47 @@ async def control_assistant_state(req: StateActionRequest):
 # TASK & CONVERSATION APIS
 # ==============================================================================
 
-class TaskSubmitRequest(BaseModel):
+class TaskSubmitOrPersonalRequest(BaseModel):
+    # Execution Task fields
     user_request: Optional[str] = None
     query: Optional[str] = None
     screen_context: bool = False
     attachments: List[str] = Field(default_factory=list)
 
+    # Personal Task fields
+    title: Optional[str] = None
+    description: str = ""
+    priority: str = "MEDIUM"
+    project_id: Optional[str] = None
+    goal_id: Optional[str] = None
+    milestone_id: Optional[str] = None
+    due_date: Optional[str] = None
+    estimated_duration_minutes: int = 30
+    tags: List[str] = Field(default_factory=list)
+
+
+TaskSubmitRequest = TaskSubmitOrPersonalRequest
+TaskCreateRequest = TaskSubmitOrPersonalRequest
+
 
 @app.post("/tasks")
 @app.post("/api/tasks")
-async def submit_task(req: TaskSubmitRequest):
+async def submit_or_create_task(req: TaskSubmitOrPersonalRequest):
+    if req.title:
+        priority_enum = getattr(TaskPriority, (req.priority or "MEDIUM").upper(), TaskPriority.MEDIUM)
+        task = orchestrator.productivity.tasks.create_task(
+            title=req.title,
+            description=req.description,
+            priority=priority_enum,
+            project_id=req.project_id,
+            goal_id=req.goal_id,
+            milestone_id=req.milestone_id,
+            due_date=req.due_date,
+            estimated_duration_minutes=req.estimated_duration_minutes,
+            tags=req.tags,
+        )
+        return task.model_dump()
+
     if assistant_state_mgr.locked:
         raise HTTPException(status_code=423, detail="Assistant is locked. Please unlock first.")
 
@@ -262,14 +294,26 @@ async def submit_task(req: TaskSubmitRequest):
 
 @app.get("/tasks")
 @app.get("/api/tasks")
-async def list_tasks(limit: int = 20):
-    tasks = orchestrator.list_tasks(limit=limit)
+async def list_tasks(
+    limit: Optional[int] = None,
+    project_id: Optional[str] = None,
+    status: Optional[str] = None,
+    type: Optional[str] = None,
+):
+    if type == "execution" or (limit is not None and project_id is None and status is None):
+        tasks = orchestrator.list_tasks(limit=limit or 20)
+        return [t.model_dump() for t in tasks]
+
+    tasks = orchestrator.productivity.store.list_tasks(project_id=project_id, status=status)
     return [t.model_dump() for t in tasks]
 
 
 @app.get("/tasks/{task_id}")
 @app.get("/api/tasks/{task_id}")
 async def get_task(task_id: str):
+    p_task = orchestrator.productivity.store.get_task(task_id)
+    if p_task:
+        return p_task.model_dump()
     task = orchestrator.get_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -899,6 +943,213 @@ async def get_voice_audio(filename: str):
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Audio file not found")
     return FileResponse(file_path, media_type="audio/mpeg")
+
+
+# ==============================================================================
+# PHASE 16: PRODUCTIVITY OS REST ENDPOINTS
+# ==============================================================================
+
+class TaskCompleteRequest(BaseModel):
+    notes: str = ""
+    artifact_path: Optional[str] = None
+
+
+class ProjectCreateRequest(BaseModel):
+    name: str
+    description: str = ""
+    priority: str = "MEDIUM"
+    codebase_path: Optional[str] = None
+    repo_url: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+
+
+class GoalCreateRequest(BaseModel):
+    title: str
+    description: str = ""
+    category: str = "General"
+    priority: str = "MEDIUM"
+    target_date: Optional[str] = None
+
+
+class FocusStartRequest(BaseModel):
+    task_id: Optional[str] = None
+    task_title: str = ""
+    duration_minutes: int = 60
+
+
+class DailyPlanRequest(BaseModel):
+    date: Optional[str] = None
+    available_hours: float = 8.0
+
+
+@app.get("/api/productivity/dashboard")
+async def get_productivity_dashboard():
+    return orchestrator.productivity.get_dashboard_summary()
+
+
+@app.post("/api/tasks/{task_id}/complete")
+async def complete_task(task_id: str, req: TaskCompleteRequest):
+    exec_output = {"manually_confirmed": True, "notes": req.notes}
+    if req.artifact_path:
+        exec_output["artifact_path"] = req.artifact_path
+
+    verified, failures = orchestrator.productivity.tasks.complete_task(
+        task_id, execution_output=exec_output
+    )
+    if not verified:
+        raise HTTPException(status_code=400, detail=f"Completion gate rejected: {'; '.join(failures)}")
+    task = orchestrator.productivity.store.get_task(task_id)
+    return task.model_dump()
+
+
+@app.post("/api/tasks/{task_id}/defer")
+async def defer_task(task_id: str, req: Dict[str, Any]):
+    task = orchestrator.productivity.store.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    task.status = TaskStatus.DEFERRED
+    if "new_due_date" in req:
+        task.due_date = req["new_due_date"]
+    orchestrator.productivity.store.save_task(task)
+    return task.model_dump()
+
+
+@app.delete("/api/tasks/{task_id}")
+async def delete_task(task_id: str):
+    success = orchestrator.productivity.store.delete_task(task_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"success": True}
+
+
+# Projects
+@app.get("/api/projects")
+async def list_projects(status: Optional[str] = None):
+    projects = orchestrator.productivity.store.list_projects(status=status)
+    return [p.model_dump() for p in projects]
+
+
+@app.post("/api/projects")
+async def create_project(req: ProjectCreateRequest):
+    priority_enum = getattr(TaskPriority, req.priority.upper(), TaskPriority.MEDIUM)
+    project = orchestrator.productivity.projects.create_project(
+        name=req.name,
+        description=req.description,
+        priority=priority_enum,
+        codebase_path=req.codebase_path,
+        repo_url=req.repo_url,
+        tags=req.tags,
+    )
+    return project.model_dump()
+
+
+@app.get("/api/projects/{project_id}")
+async def get_project(project_id: str):
+    project = orchestrator.productivity.store.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project.model_dump()
+
+
+@app.get("/api/projects/{project_id}/context")
+async def get_project_context(project_id: str):
+    return orchestrator.productivity.context.get_project_context(project_id)
+
+
+@app.get("/api/projects/{project_id}/health")
+async def get_project_health(project_id: str):
+    return orchestrator.productivity.projects.get_project_health(project_id)
+
+
+@app.delete("/api/projects/{project_id}")
+async def delete_project(project_id: str):
+    success = orchestrator.productivity.store.delete_project(project_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return {"success": True}
+
+
+# Goals
+@app.get("/api/goals")
+async def list_goals(status: Optional[str] = None):
+    goals = orchestrator.productivity.store.list_goals(status=status)
+    return [g.model_dump() for g in goals]
+
+
+@app.post("/api/goals")
+async def create_goal(req: GoalCreateRequest):
+    priority_enum = getattr(TaskPriority, req.priority.upper(), TaskPriority.MEDIUM)
+    goal = orchestrator.productivity.goals.create_goal(
+        title=req.title,
+        description=req.description,
+        category=req.category,
+        priority=priority_enum,
+        target_date=req.target_date,
+    )
+    return goal.model_dump()
+
+
+@app.get("/api/goals/{goal_id}/progress")
+async def get_goal_progress(goal_id: str):
+    goal = orchestrator.productivity.goals.update_goal_progress(goal_id)
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    return {"goal_id": goal.id, "title": goal.title, "progress": goal.progress, "status": goal.status.value}
+
+
+# Planning & Recommendations
+@app.post("/api/planning/daily")
+async def generate_daily_plan(req: DailyPlanRequest):
+    plan, warning = orchestrator.productivity.planning.generate_daily_plan(
+        date_str=req.date,
+        available_minutes=int(req.available_hours * 60),
+    )
+    return {"plan": plan.model_dump(), "warning": warning}
+
+
+@app.post("/api/planning/daily/{plan_id}/accept")
+async def accept_daily_plan(plan_id: str):
+    success = orchestrator.productivity.planning.accept_plan(plan_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    return {"success": True}
+
+
+@app.get("/api/planning/recommend")
+async def recommend_tasks(limit: int = 3):
+    return orchestrator.productivity.recommend_next_tasks(limit=limit)
+
+
+@app.get("/api/planning/weekly")
+async def weekly_review():
+    return orchestrator.productivity.reviews.generate_weekly_review()
+
+
+# Focus Mode
+@app.post("/api/focus/start")
+async def start_focus(req: FocusStartRequest):
+    session = orchestrator.productivity.focus.start_focus_session(
+        task_id=req.task_id,
+        task_title=req.task_title,
+        duration_minutes=req.duration_minutes,
+    )
+    return session.model_dump()
+
+
+@app.post("/api/focus/end")
+async def end_focus(req: Dict[str, Any]):
+    completed = req.get("completed", True)
+    notes = req.get("notes", "")
+    session = orchestrator.productivity.focus.end_focus_session(completed=completed, notes=notes)
+    if not session:
+        return {"active": False, "message": "No active focus session to end"}
+    return session.model_dump()
+
+
+@app.get("/api/focus/active")
+async def get_active_focus():
+    active = orchestrator.productivity.focus.active_session
+    return {"active": active is not None, "session": active.model_dump() if active else None}
 
 
 # ==============================================================================
