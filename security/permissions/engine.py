@@ -51,6 +51,14 @@ class PermissionEngine:
         # Pre-approved sessions/tokens
         self._session_preapprovals: set[str] = set()
 
+    def grant_preapproval(self, task_id: str, tool_name: str) -> None:
+        """Preapproves a specific tool execution within a task/workflow."""
+        self._session_preapprovals.add(f"{task_id}:{tool_name}")
+
+    def revoke_preapproval(self, task_id: str, tool_name: str) -> None:
+        """Revokes a session preapproval."""
+        self._session_preapprovals.discard(f"{task_id}:{tool_name}")
+
     def set_tool_risk(self, tool_name: str, risk: RiskLevel) -> None:
         self._tool_risk_overrides[tool_name] = risk
 
@@ -67,6 +75,27 @@ class PermissionEngine:
         # Strict mode (default)
         return risk in (RiskLevel.SENSITIVE, RiskLevel.CRITICAL)
 
+
+    def request_approval(
+        self,
+        task_id: str,
+        tool_name: str,
+        arguments: Dict[str, Any],
+        description: str,
+        risk_level: RiskLevel,
+        target: str = ""
+    ) -> ApprovalRequest:
+        """Creates a pending approval request without blocking."""
+        req = ApprovalRequest(
+            task_id=task_id,
+            tool_name=tool_name,
+            arguments=arguments,
+            risk_level=risk_level,
+            description=description,
+            target=target
+        )
+        self._pending_requests[req.id] = req
+        return req
 
     async def evaluate_and_request(
         self,

@@ -53,6 +53,134 @@ class MockProvider(LLMProvider):
             if key in query:
                 return plan
 
+        # Phase 5: LinkedIn Post Drafting for Project
+        if "linkedin" in query and ("post" in query or "draft" in query or "project" in query or "share" in query):
+            return TaskPlan(
+                goal=user_query,
+                rationale="Find local project, generate showcase post, and prepare draft on LinkedIn",
+                steps=[
+                    PlanStep(
+                        id="1",
+                        tool="project.find",
+                        action="Find target project metadata",
+                        arguments={"query": "Heart Disease"},
+                        expected_outcome="Project details discovered"
+                    ),
+                    PlanStep(
+                        id="2",
+                        tool="content.generate_linkedin_post",
+                        action="Draft LinkedIn post for project",
+                        arguments={"project_name": "Heart Disease Prediction System"},
+                        expected_outcome="LinkedIn post drafted"
+                    ),
+                    PlanStep(
+                        id="3",
+                        tool="linkedin.prepare_post",
+                        action="Prepare draft post in LinkedIn composer",
+                        arguments={"content": "Draft showcase post"},
+                        expected_outcome="Draft created on LinkedIn with DRAFT status"
+                    )
+                ]
+            )
+
+        # Phase 5: Gmail Cleanup
+        if "gmail" in query and ("clean" in query or "saaf" in query or "cleanup" in query or "archive" in query):
+            return TaskPlan(
+                goal=user_query,
+                rationale="Analyze Gmail inbox and propose cleanup actions requiring user approval",
+                steps=[
+                    PlanStep(
+                        id="1",
+                        tool="gmail.propose_cleanup",
+                        action="Scan inbox for low-priority and promotional emails",
+                        arguments={"max_age_days": 30},
+                        expected_outcome="Cleanup proposal generated"
+                    )
+                ]
+            )
+
+        # Phase 5: Gmail Summarization
+        if "gmail" in query and ("summarize" in query or "summary" in query or "inbox" in query or "mail" in query):
+            return TaskPlan(
+                goal=user_query,
+                rationale="Read unread Gmail messages and generate executive summary",
+                steps=[
+                    PlanStep(
+                        id="1",
+                        tool="gmail.read_inbox",
+                        action="Fetch recent inbox messages",
+                        arguments={"limit": 10},
+                        expected_outcome="Inbox messages retrieved"
+                    ),
+                    PlanStep(
+                        id="2",
+                        tool="gmail.summarize",
+                        action="Generate executive summary of inbox",
+                        arguments={},
+                        expected_outcome="Structured email summary generated"
+                    )
+                ]
+            )
+
+        # Phase 5: Autonomous Research Workflow
+        if "research" in query:
+            topic = query.replace("research", "").replace("find", "").replace("papers", "").replace("pe", "").replace("karo", "").strip()
+            topic = topic or "Autonomous AI Agents"
+            return TaskPlan(
+                goal=user_query,
+                rationale="Execute multi-source research, synthesize findings with citations, and save report",
+                steps=[
+                    PlanStep(
+                        id="1",
+                        tool="research.search",
+                        action=f"Search authoritative sources for '{topic}'",
+                        arguments={"query": topic, "max_results": 5},
+                        expected_outcome="Authoritative sources gathered"
+                    ),
+                    PlanStep(
+                        id="2",
+                        tool="research.synthesize",
+                        action=f"Synthesize structured report with citations for '{topic}'",
+                        arguments={"topic": topic},
+                        expected_outcome="Structured research report generated"
+                    ),
+                    PlanStep(
+                        id="3",
+                        tool="research.save_report",
+                        action="Save research report artifacts to disk",
+                        arguments={"topic": topic},
+                        expected_outcome="Report markdown and sources saved"
+                    )
+                ]
+            )
+
+        # Phase 5: GitHub Repo Inspection & Run Analysis
+        if "github" in query:
+            repo = "user/repo"
+            for token in query.split():
+                if "/" in token:
+                    repo = token
+            return TaskPlan(
+                goal=user_query,
+                rationale="Inspect GitHub repository and analyze safe runnable entry points",
+                steps=[
+                    PlanStep(
+                        id="1",
+                        tool="github.inspect_repo",
+                        action=f"Inspect repository structure for '{repo}'",
+                        arguments={"repo": repo},
+                        expected_outcome="Repository inspected"
+                    ),
+                    PlanStep(
+                        id="2",
+                        tool="github.inspect_runnable",
+                        action=f"Analyze safe run command and dependencies for '{repo}'",
+                        arguments={"repo": repo},
+                        expected_outcome="Safe run command analyzed"
+                    )
+                ]
+            )
+
         # Browser YouTube Playback Task
         if "play" in query or "song" in query or "gana" in query or "arijit" in query:
             song_query = user_query

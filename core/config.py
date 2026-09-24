@@ -59,6 +59,12 @@ class Settings(BaseSettings):
     BROWSER_USER_DATA_DIR: str = ""
     BROWSER_DOWNLOAD_DIR: str = "downloads"
 
+    # Productivity Integrations & Workflows (Phase 5)
+    AUTHORIZED_PROJECT_ROOTS: list[str] = []
+    GITHUB_TOKEN: str = ""
+    RESEARCH_OUTPUT_DIR: str = "research"
+    RATE_LIMIT_COOLDOWN_SECONDS: float = 0.5
+
     # Mobile Bridge
     MOBILE_BRIDGE_HOST: str = "0.0.0.0"
     MOBILE_BRIDGE_PORT: int = 8765
@@ -83,6 +89,12 @@ class Settings(BaseSettings):
     @property
     def download_path(self) -> Path:
         path = Path(self.BROWSER_DOWNLOAD_DIR)
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    @property
+    def research_path(self) -> Path:
+        path = Path(self.RESEARCH_OUTPUT_DIR)
         path.mkdir(parents=True, exist_ok=True)
         return path
 

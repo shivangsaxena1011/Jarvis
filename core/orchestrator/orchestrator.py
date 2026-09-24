@@ -104,6 +104,55 @@ from tools.browser import (
     BrowserPlayYouTubeTool,
 )
 
+# Project, Content & Workflow Engine (Phase 5)
+from core.projects.indexer import ProjectIndexer
+from agents.content.agent import ContentAgent
+from core.workflows.models import Workflow, WorkflowResult, WorkflowStatus
+from core.workflows.engine import WorkflowEngine
+from integrations.youtube import YouTubeService
+from integrations.gmail import GmailService
+from integrations.linkedin import LinkedInService
+from integrations.github import GitHubService
+from integrations.research import ResearchService
+
+from tools.integrations import (
+    YouTubeSearchTool,
+    YouTubeOpenVideoTool,
+    YouTubePlayTool,
+    YouTubePauseTool,
+    YouTubeStopTool,
+    YouTubeGetCurrentVideoTool,
+    GmailOpenTool,
+    GmailListUnreadTool,
+    GmailSearchTool,
+    GmailSummarizeTool,
+    GmailCleanupProposalTool,
+    GmailExecuteCleanupTool,
+    GmailDeleteTool,
+    LinkedInOpenTool,
+    LinkedInReadFeedTool,
+    LinkedInPreparePostTool,
+    LinkedInPrepareCommentTool,
+    LinkedInPublishPostTool,
+    GitHubInspectRepositoryTool,
+    GitHubReadFileTool,
+    GitHubListFilesTool,
+    GitHubReadIssuesTool,
+    GitHubCreateIssueTool,
+    GitHubInspectRunnableTool,
+    ResearchSearchTool,
+    ResearchOpenSourceTool,
+    ResearchSummarizeTool,
+    ResearchSaveReportTool,
+    ProjectFindTool,
+    ProjectListTool,
+    ContentGenerateLinkedInPostTool,
+    ContentGenerateEmailTool,
+    ContentGenerateCommentTool,
+    ContentGenerateReadmeTool,
+    ContentGeneratePresentationTool,
+)
+
 
 class Orchestrator:
     def __init__(
@@ -129,13 +178,23 @@ class Orchestrator:
         self.ui_context = CurrentUIContext()
         self.computer_agent = ComputerAgent(adapter=self.os_adapter, context=self.ui_context)
         self.browser_agent = browser_agent or BrowserAgent()
+
+        # Phase 5: Productivity services, indexer, content agent & workflow engine
+        self.project_indexer = ProjectIndexer()
+        self.content_agent = ContentAgent()
+        self.youtube_service = YouTubeService(browser_agent=self.browser_agent)
+        self.gmail_service = GmailService(browser_agent=self.browser_agent)
+        self.linkedin_service = LinkedInService(browser_agent=self.browser_agent)
+        self.github_service = GitHubService(token=self.settings.GITHUB_TOKEN)
+        self.research_service = ResearchService(browser_agent=self.browser_agent, output_dir=self.settings.RESEARCH_OUTPUT_DIR)
+        self.workflow_engine = WorkflowEngine(tool_registry=self.tools, permission_engine=self.permissions, event_bus=self.events)
         
         self.planner = TaskPlanner(self.llm, self.tools)
         self.executor = TaskExecutor(self.tools, self.emergency, event_bus=self.events)
 
         self._tasks: Dict[str, Task] = {}
 
-        # Auto-register Phase 1, Phase 3, and Phase 4 tools
+        # Auto-register Phase 1, Phase 3, Phase 4, and Phase 5 tools
         self._register_default_tools()
 
     def _register_default_tools(self) -> None:
@@ -221,6 +280,47 @@ class Orchestrator:
             BrowserUploadFileTool(browser_agent=self.browser_agent),
             BrowserDownloadFileTool(browser_agent=self.browser_agent),
             BrowserPlayYouTubeTool(browser_agent=self.browser_agent),
+            # Phase 5: Project & Content tools
+            ProjectFindTool(indexer=self.project_indexer),
+            ProjectListTool(indexer=self.project_indexer),
+            ContentGenerateLinkedInPostTool(agent=self.content_agent),
+            ContentGenerateEmailTool(agent=self.content_agent),
+            ContentGenerateCommentTool(agent=self.content_agent),
+            ContentGenerateReadmeTool(agent=self.content_agent),
+            ContentGeneratePresentationTool(agent=self.content_agent),
+            # Phase 5: YouTube tools
+            YouTubeSearchTool(youtube_service=self.youtube_service),
+            YouTubeOpenVideoTool(youtube_service=self.youtube_service),
+            YouTubePlayTool(youtube_service=self.youtube_service),
+            YouTubePauseTool(youtube_service=self.youtube_service),
+            YouTubeStopTool(youtube_service=self.youtube_service),
+            YouTubeGetCurrentVideoTool(youtube_service=self.youtube_service),
+            # Phase 5: Gmail tools
+            GmailOpenTool(gmail_service=self.gmail_service),
+            GmailListUnreadTool(gmail_service=self.gmail_service),
+            GmailSearchTool(gmail_service=self.gmail_service),
+            GmailSummarizeTool(gmail_service=self.gmail_service),
+            GmailCleanupProposalTool(gmail_service=self.gmail_service),
+            GmailExecuteCleanupTool(gmail_service=self.gmail_service),
+            GmailDeleteTool(gmail_service=self.gmail_service),
+            # Phase 5: LinkedIn tools
+            LinkedInOpenTool(linkedin_service=self.linkedin_service),
+            LinkedInReadFeedTool(linkedin_service=self.linkedin_service),
+            LinkedInPreparePostTool(linkedin_service=self.linkedin_service),
+            LinkedInPrepareCommentTool(linkedin_service=self.linkedin_service),
+            LinkedInPublishPostTool(linkedin_service=self.linkedin_service),
+            # Phase 5: GitHub tools
+            GitHubInspectRepositoryTool(github_service=self.github_service),
+            GitHubReadFileTool(github_service=self.github_service),
+            GitHubListFilesTool(github_service=self.github_service),
+            GitHubReadIssuesTool(github_service=self.github_service),
+            GitHubCreateIssueTool(github_service=self.github_service),
+            GitHubInspectRunnableTool(github_service=self.github_service),
+            # Phase 5: Research tools
+            ResearchSearchTool(research_service=self.research_service),
+            ResearchOpenSourceTool(research_service=self.research_service),
+            ResearchSummarizeTool(research_service=self.research_service),
+            ResearchSaveReportTool(research_service=self.research_service),
         ]
         for t in default_tools:
             self.tools.register(t)
@@ -359,6 +459,18 @@ class Orchestrator:
                 "emergency_stopped": self.emergency.is_stopped
             }
         }
+
+    async def submit_workflow(self, workflow: Workflow) -> WorkflowResult:
+        """Executes a multi-step cross-application workflow."""
+        return await self.workflow_engine.execute_workflow(workflow)
+
+    async def resume_workflow(self, workflow_id: str, approved: bool = True) -> WorkflowResult:
+        """Resumes a paused workflow awaiting human approval."""
+        return await self.workflow_engine.resume_workflow(workflow_id, approved=approved)
+
+    def get_workflow(self, workflow_id: str) -> Optional[Workflow]:
+        """Retrieves a tracked workflow by id."""
+        return self.workflow_engine.get_workflow(workflow_id)
 
     async def shutdown(self) -> None:
         """Gracefully stops all active tasks and cleans up browser sessions."""

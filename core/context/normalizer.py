@@ -11,6 +11,12 @@ from pydantic import BaseModel, Field
 
 # Common Hindi / Hinglish vocabulary mappings
 HINGLISH_ACTION_MAP = [
+    # Phase 5 Productivity Workflows
+    (r"\b(?:mere|mera|apna)\s+(.*?)\s+(?:project ke liye|project par)\s+(?:linkedin post|post)\s+(?:banao|likho|ready karo|draft karo)\b", r"draft linkedin post for project \1"),
+    (r"\b(?:linkedin post banao|linkedin post draft karo|linkedin pe post ready karo)\b", "draft linkedin post"),
+    (r"\b(?:mera gmail summarize karo|inbox summarize karo|gmail summary do|mails summarize karo)\b", "summarize gmail inbox"),
+    (r"\b(?:mera gmail clean karo|gmail saaf karo|inbox clean karo|spam saaf karo)\b", "clean gmail inbox"),
+    (r"\b(?:research papers find karo|research papers dhoondo|topic pe research karo)\b", "find research papers"),
     # Summarize & Extract (Browser Intelligence)
     (r"\b(?:is webpage ka summary batao|is page ka summary batao|summary batao|summary do|summarize karo|summary nikalo)\b", "summarize this page"),
     (r"\b(?:ye webpage se important information extract karo|is webpage se data extract karo|information extract karo|extract karo)\b", "extract information from webpage"),

@@ -23,6 +23,15 @@ SHIVANI is a voice-first, autonomous personal AI operating layer designed to und
   - Multi-engine search (Google, Bing, DuckDuckGo), noise-filtered webpage summarization, and structured data extraction.
   - Multi-tab lifecycle control (open, switch, close, list) and file upload/download verification.
   - Third-party integration foundations (`integrations/linkedin/`, `integrations/gmail/`) with mandatory human-in-the-loop confirmation.
+- **Productivity Integrations & Cross-Application Workflows (Phase 5)**:
+  - **YouTube Integration** (`integrations/youtube`): Direct search, ranked candidates, playback controls (play, pause, resume, like, fullscreen) with verified HTML5 video state.
+  - **Gmail Integration** (`integrations/gmail`): Categorized unread email triage (important, personal, work, promotional, spam), executive summaries, and two-stage safe cleanup proposal with approval gates.
+  - **LinkedIn Integration** (`integrations/linkedin`): Local project showcase generation, DRAFT creation, user approval gate, and verified publication.
+  - **GitHub Integration** (`integrations/github`): Local repo scanner, language/framework detection, runnable command analysis, file operations, and issue management.
+  - **Autonomous Research Engine** (`integrations/research`): Multi-source querying, provenance tracking, structured citation extraction, and markdown/JSON report bundles (`report.md`, `sources.json`, `summary.json`).
+  - **Content Synthesis Agent** (`agents/content`): High-impact social posts, email drafts, documentation, and README generation.
+  - **Composable Workflow Engine** (`core/workflows`): Sequential execution, dynamic variable substitution (`{var}`), non-destructive pausing on approval (`WAITING_FOR_APPROVAL`), exact resumption, and environmental failure diagnostics.
+  - **100 Registered & Verified Tools**: Complete expansion of registered tools across all 5 phases with 100% test coverage (89/89 tests passing).
 - **Autonomous Computer Use Agent & Windows 11 Desktop Control**:
   - Operates Windows 11 applications (*"Shivani, open VS Code"*, *"Chrome kholo"*), multi-tier app discovery (Registry App Paths, Start Menu `.lnk`, PATH).
   - Window management: minimize (*"Chrome ko minimize karo"*), maximize, restore, focus/switch (*"VS Code pe wapas jao"*), and close.
