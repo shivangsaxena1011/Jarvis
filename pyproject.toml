@@ -50,6 +50,7 @@ include = [
     "vision*",
     "voice*",
     "planning*",
+    "knowledge*",
 ]
 
 [tool.pytest.ini_options]

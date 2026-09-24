@@ -29,9 +29,17 @@ from agents.coding.error_analyzer import ErrorAnalyzer
 class CodingAgent:
     """Professional autonomous software engineer agent."""
 
-    def __init__(self):
+    def __init__(self, knowledge_os: Optional[Any] = None):
         self.detector = ProjectDetector()
         self.error_analyzer = ErrorAnalyzer()
+        self.knowledge_os = knowledge_os
+
+    def query_codebase_knowledge(self, query: str, project_id: Optional[str] = None) -> Dict[str, Any]:
+        """Queries indexed project blueprints, documentation, and AST symbols via Knowledge OS."""
+        if self.knowledge_os:
+            return self.knowledge_os.search(query=query, project_id=project_id)
+        return {"context": "Knowledge OS not configured.", "citations": []}
+
 
     def inspect_project(self, project_path: str) -> Dict[str, Any]:
         """Inspects project structure, languages, frameworks, entrypoints, and git safety."""

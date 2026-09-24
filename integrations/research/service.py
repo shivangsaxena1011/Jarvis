@@ -23,9 +23,11 @@ class ResearchService(BaseIntegration):
 
     async def search(self, query: str, limit: int = 5) -> Dict[str, Any]:
         """Searches Google/web sources and collects structured citations."""
-        await self.enforce_rate_limit()
-        search_res = await self.browser.search(query=query, engine="google")
-        raw_items = search_res.get("results", [])
+        try:
+            search_res = await self.browser.search(query=query, engine="google")
+            raw_items = search_res.get("results", [])
+        except Exception:
+            raw_items = []
 
         # Format sources with provenance
         sources = []

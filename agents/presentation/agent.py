@@ -33,8 +33,44 @@ class PresentationAgent:
     ACCENT_CYAN = RGBColor(6, 182, 212)    # Cyan 500
     ACCENT_EMERALD = RGBColor(16, 185, 129) # Emerald 500
 
-    def __init__(self, artifact_manager: Optional[ArtifactManager] = None):
+    def __init__(self, artifact_manager: Optional[ArtifactManager] = None, knowledge_os: Optional[Any] = None):
         self.artifacts = artifact_manager or ArtifactManager()
+        self.knowledge_os = knowledge_os
+
+    def build_deck_from_project(
+        self,
+        project_id_or_path: str,
+        title: Optional[str] = None,
+        mode: PresentationMode = PresentationMode.HACKATHON,
+        target_duration: int = 5,
+    ) -> PresentationDeck:
+        """Constructs a presentation deck automatically populated from Knowledge OS project context."""
+        name = "Project"
+        tech_stack = ["Python"]
+        summary = "Autonomous AI Agent Project"
+        if self.knowledge_os:
+            try:
+                p = Path(project_id_or_path)
+                prof = self.knowledge_os.project_indexer.discover_project(str(p.resolve())) if p.is_dir() else None
+                if prof:
+                    name = prof.name
+                    tech_stack = prof.languages + prof.frameworks
+                    summary = prof.architecture_overview[:200] if prof.architecture_overview else f"{prof.name} Architecture"
+            except Exception:
+                pass
+
+        deck_title = title or f"{name} Overview & Architecture"
+        return self.build_deck(
+            title=deck_title,
+            project_name=name,
+            problem_statement="Automating complex workflows with verified computer intelligence.",
+            solution_summary=summary,
+            tech_stack=tech_stack,
+            key_features=["Unified Workspace", "Knowledge OS", "Autonomous Multi-Agent Systems"],
+            mode=mode,
+            target_duration=target_duration,
+        )
+
 
     def build_deck(
         self,

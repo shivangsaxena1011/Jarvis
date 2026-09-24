@@ -263,6 +263,17 @@ from core.modes import SafeModeController, DemoModeController
 # Phase 11: Advanced Agentic Planning, TaskGraphs, and Replanning
 from planning.planner import AdvancedPlanner, get_advanced_planner
 from planning.models import Goal, ExecutionStrategy, SubTaskStatus, ReplanTrigger
+
+# Phase 12: Knowledge OS & Tools
+from knowledge.service import KnowledgeOS, get_knowledge_os
+from tools.knowledge_tools import (
+    KnowledgeSearchTool,
+    KnowledgeGetProjectContextTool,
+    KnowledgeIndexPathTool,
+    KnowledgeQueryGraphTool,
+    KnowledgeAddNoteTool,
+)
+
 from planning.dependency_graph import TaskGraph
 
 
@@ -359,6 +370,10 @@ class Orchestrator:
         self.limits = execution_limits or DEFAULT_LIMITS
         self.safe_mode = SafeModeController()
         self.demo_mode = DemoModeController()
+
+        # Phase 12: Knowledge OS
+        self.knowledge_os = get_knowledge_os()
+
 
         # Register Emergency Abort Callbacks
         self.emergency.register_abort_callback(
@@ -633,6 +648,12 @@ class Orchestrator:
             # Phase 8: Notification tools
             NotificationsListTool(notification_center=self.notifications),
             NotificationsDismissTool(notification_center=self.notifications),
+            # Phase 12: Knowledge OS tools
+            KnowledgeSearchTool(knowledge_os=self.knowledge_os),
+            KnowledgeGetProjectContextTool(knowledge_os=self.knowledge_os),
+            KnowledgeIndexPathTool(knowledge_os=self.knowledge_os),
+            KnowledgeQueryGraphTool(knowledge_os=self.knowledge_os),
+            KnowledgeAddNoteTool(knowledge_os=self.knowledge_os),
         ]
         for t in default_tools:
             self.tools.register(t)

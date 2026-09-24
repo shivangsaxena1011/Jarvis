@@ -20,9 +20,16 @@ class ResearchAgent:
     PRIMARY_DOMAINS = ("arxiv.org", "doi.org", "acm.org", "ieee.org", "nature.com", "science.org", "docs.", "rfc-editor.org", "w3.org")
     SECONDARY_DOMAINS = ("github.com", "medium.com", "techcrunch.com", "towardsdatascience.com", "blog.", "dev.to")
 
-    def __init__(self, research_service: Optional[ResearchService] = None, artifact_manager: Optional[ArtifactManager] = None):
+    def __init__(
+        self,
+        research_service: Optional[ResearchService] = None,
+        artifact_manager: Optional[ArtifactManager] = None,
+        knowledge_os: Optional[Any] = None,
+    ):
         self.service = research_service or ResearchService()
         self.artifacts = artifact_manager or ArtifactManager()
+        self.knowledge_os = knowledge_os
+
 
     def classify_source_type(self, url: str) -> SourceType:
         """Determines authority tier based on domain and publishing venue."""
@@ -95,7 +102,23 @@ class ResearchAgent:
         self.artifacts.save_artifact("research", f"{slug}_sources.json", [s.model_dump() for s in bundle.sources])
         self.artifacts.save_artifact("research", f"{slug}_summary.json", bundle.model_dump())
 
+        # Index into Knowledge OS if configured
+        if self.knowledge_os:
+            try:
+                from knowledge.models import KnowledgeItem, KnowledgeType
+                item = KnowledgeItem(
+                    type=KnowledgeType.RESEARCH_SOURCE,
+                    title=f"Research: {topic}",
+                    content=bundle.markdown_report,
+                    summary=bundle.executive_summary[:200],
+                    metadata={"topic": topic, "sources_count": len(bundle.sources)},
+                )
+                self.knowledge_os.store.save_item(item)
+            except Exception:
+                pass
+
         return bundle
+
 
     def _synthesize_bundle(
         self,
