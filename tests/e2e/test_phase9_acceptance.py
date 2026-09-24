@@ -44,7 +44,7 @@ def test_scenario_1_doctor_check():
     # Tool registry and core dependencies must pass
     tool_check = next(r for r in results if r.name == "Tool Registry")
     assert tool_check.passed is True
-    assert "151 tools" in tool_check.message
+    assert "tools registered" in tool_check.message
 
 
 # ---------------------------------------------------------

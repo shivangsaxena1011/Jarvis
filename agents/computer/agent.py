@@ -97,6 +97,23 @@ class ComputerAgent:
         """Clicks at target coordinates with focus check safety."""
         return await self.input.click(button=button, x=x, y=y, target_window=target_window)
 
+    async def click_element_by_vision(self, query: str) -> Dict[str, Any]:
+        """Grounds target query visually and performs safe click."""
+        from vision.service import get_vision_service
+        service = get_vision_service()
+        elem, point, conf = service.locate_target(query)
+        if not elem or not point:
+            return {"success": False, "details": f"Could not visually ground target '{query}'."}
+        pt = point.as_int_tuple()
+        click_res = await self.safe_click(x=pt[0], y=pt[1])
+        return {
+            "success": True,
+            "element": elem.id,
+            "text": elem.text,
+            "confidence": conf,
+            "click_result": click_res,
+        }
+
     async def execute_with_recovery(
         self,
         action_fn: Callable[..., Any],

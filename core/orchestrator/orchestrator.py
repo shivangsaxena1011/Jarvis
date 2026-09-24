@@ -50,6 +50,9 @@ from tools.desktop import (
     ClipboardWriteTool,
     ClipboardClearTool,
     ScreenshotTool,
+    VisualInspectTool,
+    VisualFindElementTool,
+    VisualOCRTool,
     OpenFolderTool,
     FindFilesTool,
 )
@@ -475,8 +478,11 @@ class Orchestrator:
             ClipboardReadTool(clipboard_manager=clip_mgr),
             ClipboardWriteTool(clipboard_manager=clip_mgr),
             ClipboardClearTool(clipboard_manager=clip_mgr),
-            # Screen capture & file explorer tools
+            # Screen capture & vision tools
             ScreenshotTool(screen_capture=scr_cap),
+            VisualInspectTool(),
+            VisualFindElementTool(),
+            VisualOCRTool(),
             OpenFolderTool(),
             FindFilesTool(),
             # Filesystem tools

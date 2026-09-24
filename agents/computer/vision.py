@@ -1,5 +1,5 @@
 """
-SHIVANI Vision Provider Interface
+SHIVANI Vision Provider Interface — Phase 10 Visual Computer Intelligence.
 Establishes multimodal vision abstraction for UI element location,
 screenshot description, and semantic perception.
 """
@@ -7,6 +7,7 @@ screenshot description, and semantic perception.
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 from agents.computer.observation import DesktopElement
+from vision.service import get_vision_service, VisionService
 
 
 class VisionProvider(ABC):
@@ -26,6 +27,52 @@ class VisionProvider(ABC):
     async def describe_screen(self, screenshot_path: str) -> str:
         """Generates natural language summary of the screen state."""
         pass
+
+
+class Phase10VisionProvider(VisionProvider):
+    """Production Phase 10 Vision Intelligence Provider backed by VisionService."""
+
+    def __init__(self, vision_service: Optional[VisionService] = None):
+        self.service = vision_service or get_vision_service()
+
+    async def analyze_screenshot(self, screenshot_path: str) -> Dict[str, Any]:
+        """Performs OCR and UI element detection on screenshot."""
+        ocr_res = self.service.ocr_engine.extract(screenshot_path)
+        ui_elems = self.service.element_detector.detect_elements(screenshot_path, ocr_res)
+
+        desktop_elements: List[DesktopElement] = []
+        for elem in ui_elems:
+            desktop_elements.append(
+                DesktopElement(
+                    name=elem.text or elem.element_type.value,
+                    element_type=elem.element_type.value,
+                    confidence=elem.confidence,
+                    bounding_box=elem.bounding_box.to_int_dict(),
+                )
+            )
+
+        return {
+            "screenshot": screenshot_path,
+            "element_count": len(desktop_elements),
+            "elements": [e.model_dump() for e in desktop_elements],
+            "detected_text": [w.text for w in ocr_res.words],
+            "full_text": ocr_res.full_text,
+        }
+
+    async def locate_element(self, screenshot_path: str, element_description: str) -> Optional[DesktopElement]:
+        """Locates element via target grounding engine."""
+        analysis = await self.analyze_screenshot(screenshot_path)
+        # Check against detected elements
+        desc_lower = element_description.lower()
+        for elem_dict in analysis["elements"]:
+            name_lower = elem_dict["name"].lower()
+            if desc_lower in name_lower or name_lower in desc_lower:
+                return DesktopElement(**elem_dict)
+        return None
+
+    async def describe_screen(self, screenshot_path: str) -> str:
+        """Describes visual contents via VLM."""
+        return await self.service.vlm.analyze_screen(screenshot_path, "Describe the active GUI elements on this screen.")
 
 
 class MockVisionProvider(VisionProvider):

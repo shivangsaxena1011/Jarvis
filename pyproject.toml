@@ -33,6 +33,24 @@ dev = [
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+    "agents*",
+    "apps*",
+    "cli*",
+    "core*",
+    "integrations*",
+    "memory*",
+    "notifications*",
+    "observability*",
+    "recovery*",
+    "security*",
+    "tools*",
+    "vision*",
+    "voice*",
+]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

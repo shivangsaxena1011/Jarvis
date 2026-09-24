@@ -36,7 +36,12 @@ from tools.desktop.clipboard_tools import (
     ClipboardWriteTool,
     ClipboardClearTool,
 )
-from tools.desktop.screen_tools import ScreenshotTool
+from tools.desktop.screen_tools import (
+    ScreenshotTool,
+    VisualInspectTool,
+    VisualFindElementTool,
+    VisualOCRTool,
+)
 from tools.desktop.file_explorer_tools import OpenFolderTool, FindFilesTool
 
 __all__ = [
@@ -72,6 +77,9 @@ __all__ = [
     "ClipboardWriteTool",
     "ClipboardClearTool",
     "ScreenshotTool",
+    "VisualInspectTool",
+    "VisualFindElementTool",
+    "VisualOCRTool",
     "OpenFolderTool",
     "FindFilesTool",
 ]
