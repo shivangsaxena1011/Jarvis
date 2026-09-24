@@ -58,7 +58,8 @@ class ResearchOpenSourceTool(BaseTool):
 
 
 class ResearchSummarizeArgs(BaseModel):
-    query: str = Field(description="Research topic being synthesized")
+    query: Optional[str] = Field(default=None, description="Research topic being synthesized")
+    topic: Optional[str] = Field(default=None, description="Alternative topic alias")
     sources: Optional[List[Dict[str, Any]]] = Field(default=None, description="Optional list of cited sources")
 
 
@@ -73,20 +74,27 @@ class ResearchSummarizeTool(BaseTool):
         super().__init__()
         self.service = research_service or ResearchService(browser_agent)
 
-    async def run(self, query: str, sources: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    async def run(
+        self,
+        query: Optional[str] = None,
+        topic: Optional[str] = None,
+        sources: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        target_query = query or topic or "General Research"
         srcs = sources
         if not srcs:
-            search_res = await self.service.search(query=query, limit=5)
+            search_res = await self.service.search(query=target_query, limit=5)
             srcs = search_res.get("sources", [])
-        summary = self.service.summarize_sources(query=query, sources=srcs)
-        return {"query": query, "summary": summary, "sources": srcs}
+        summary = self.service.summarize_sources(query=target_query, sources=srcs)
+        return {"query": target_query, "summary": summary, "sources": srcs}
 
     async def verify(self, result_data: Any, **kwargs: Any) -> Dict[str, Any]:
         return {"verified": bool(result_data.get("summary"))}
 
 
 class ResearchSaveReportArgs(BaseModel):
-    query: str = Field(description="Research topic title")
+    query: Optional[str] = Field(default=None, description="Research topic title")
+    topic: Optional[str] = Field(default=None, description="Alternative topic alias")
     summary: Optional[str] = Field(default=None, description="Executive summary content")
     output_dir: Optional[str] = Field(default=None, description="Optional custom directory path")
 
@@ -102,11 +110,18 @@ class ResearchSaveReportTool(BaseTool):
         super().__init__()
         self.service = research_service or ResearchService(browser_agent)
 
-    async def run(self, query: str, summary: Optional[str] = None, output_dir: Optional[str] = None) -> Dict[str, Any]:
-        search_res = await self.service.search(query=query, limit=5)
+    async def run(
+        self,
+        query: Optional[str] = None,
+        topic: Optional[str] = None,
+        summary: Optional[str] = None,
+        output_dir: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        target_query = query or topic or "General Research"
+        search_res = await self.service.search(query=target_query, limit=5)
         srcs = search_res.get("sources", [])
-        summ = summary or self.service.summarize_sources(query=query, sources=srcs)
-        return await self.service.save_report(query=query, summary=summ, sources=srcs, output_dir=output_dir)
+        summ = summary or self.service.summarize_sources(query=target_query, sources=srcs)
+        return await self.service.save_report(query=target_query, summary=summ, sources=srcs, output_dir=output_dir)
 
     async def verify(self, result_data: Any, **kwargs: Any) -> Dict[str, Any]:
         from pathlib import Path

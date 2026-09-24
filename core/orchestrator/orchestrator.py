@@ -216,6 +216,41 @@ from tools.android import (
     AndroidExecuteSocialActionTool,
 )
 
+# Phase 8: Memory, Multi-Agent Orchestration, Resource Locking, Notifications, and Scheduler
+from memory.manager import MemoryManager
+from memory.models import MemoryCategory, MemoryScope, MemorySource
+from core.context.builder import ContextBuilder
+from core.context.conversational import get_conversational_context
+from core.concurrency.resource_manager import ResourceManager
+from core.agents import (
+    AgentRegistry,
+    AgentDescriptor,
+    TaskDecomposer,
+    TaskDAG,
+    SubTask,
+    TaskStage,
+    AgentMessage,
+    AgentResponse,
+)
+from notifications.center import NotificationCenter, NotificationCategory
+from core.scheduler.scheduler import SchedulerService
+from tools.memory import (
+    MemoryGetPreferenceTool,
+    MemorySetPreferenceTool,
+    MemorySearchTool,
+    MemoryForgetTool,
+    MemoryExplainTool,
+)
+from tools.scheduler import (
+    SchedulerListJobsTool,
+    SchedulerScheduleJobTool,
+    SchedulerCancelJobTool,
+)
+from tools.notifications import (
+    NotificationsListTool,
+    NotificationsDismissTool,
+)
+
 
 class Orchestrator:
     def __init__(
@@ -227,6 +262,7 @@ class Orchestrator:
         event_bus: Optional[EventBus] = None,
         os_adapter: Optional[OperatingSystemAdapter] = None,
         browser_agent: Optional[BrowserAgent] = None,
+        memory_manager: Optional[MemoryManager] = None,
     ):
         self.settings = settings or get_settings()
         self.os_adapter = os_adapter or get_os_adapter()
@@ -273,6 +309,20 @@ class Orchestrator:
         self.device_bridge.register_paired_device(default_dev)
         self.phone_agent = PhoneAgent(bridge=self.device_bridge)
 
+        # Phase 8: Memory, Concurrency, Notifications, Scheduler & Agent Registry
+        self.memory = memory_manager or MemoryManager(db_path=getattr(self.settings, "MEMORY_DB_PATH", "data/memory.db"))
+        self.resources = ResourceManager()
+        self.notifications = NotificationCenter(event_bus=self.events)
+        self.scheduler = SchedulerService()
+        self.context_builder = ContextBuilder(
+            memory_manager=self.memory,
+            os_adapter=self.os_adapter,
+            conv_context=get_conversational_context(),
+        )
+
+        self.agent_registry = AgentRegistry()
+        self._register_subagents()
+
         self.workflow_engine = WorkflowEngine(
             tool_registry=self.tools,
             permission_engine=self.permissions,
@@ -287,8 +337,80 @@ class Orchestrator:
 
         self._tasks: Dict[str, Task] = {}
 
-        # Auto-register Phase 1, Phase 3, Phase 4, Phase 5, Phase 6, and Phase 7 tools
+        # Auto-register tools across all phases
         self._register_default_tools()
+
+    def _register_subagents(self) -> None:
+        self.agent_registry.register_agent(
+            AgentDescriptor(
+                name="computer_agent",
+                description="Controls Windows desktop applications, windows, and input",
+                capabilities=["desktop", "window", "input", "clipboard"],
+                keywords=["open", "close", "window", "click", "type", "mouse"],
+                risk_tier="SAFE",
+            ),
+            instance=self.computer_agent,
+        )
+        self.agent_registry.register_agent(
+            AgentDescriptor(
+                name="browser_agent",
+                description="Controls web browsers, search, tabs, and web extraction",
+                capabilities=["web", "browser", "youtube", "linkedin", "gmail"],
+                keywords=["browser", "chrome", "youtube", "website", "search"],
+                risk_tier="SAFE",
+            ),
+            instance=self.browser_agent,
+        )
+        self.agent_registry.register_agent(
+            AgentDescriptor(
+                name="coding_agent",
+                description="Inspects code, fixes bugs, runs tests and git",
+                capabilities=["code", "git", "tests", "build"],
+                keywords=["code", "git", "bug", "patch", "test", "build"],
+                risk_tier="SENSITIVE",
+            ),
+            instance=self.coding_agent,
+        )
+        self.agent_registry.register_agent(
+            AgentDescriptor(
+                name="research_agent",
+                description="Conducts web and technical research and compiles reports",
+                capabilities=["research", "search", "summarize"],
+                keywords=["research", "report", "arxiv", "paper"],
+                risk_tier="SAFE",
+            ),
+            instance=self.research_agent,
+        )
+        self.agent_registry.register_agent(
+            AgentDescriptor(
+                name="presentation_agent",
+                description="Generates presentation slides and pitch decks",
+                capabilities=["slides", "powerpoint", "presentation"],
+                keywords=["presentation", "deck", "slides", "ppt"],
+                risk_tier="SAFE",
+            ),
+            instance=self.presentation_agent,
+        )
+        self.agent_registry.register_agent(
+            AgentDescriptor(
+                name="documentation_agent",
+                description="Generates READMEs and API / architecture documentation",
+                capabilities=["documentation", "markdown", "architecture"],
+                keywords=["readme", "documentation", "api docs"],
+                risk_tier="SAFE",
+            ),
+            instance=self.documentation_agent,
+        )
+        self.agent_registry.register_agent(
+            AgentDescriptor(
+                name="phone_agent",
+                description="Controls paired Android phone via secure device bridge",
+                capabilities=["android", "phone", "mobile", "notifications"],
+                keywords=["phone", "mobile", "android", "insta"],
+                risk_tier="SAFE",
+            ),
+            instance=self.phone_agent,
+        )
 
     def _register_default_tools(self) -> None:
         app_mgr = ApplicationManager(self.os_adapter)
@@ -459,6 +581,19 @@ class Orchestrator:
             AndroidWriteClipboardTool(phone_agent=self.phone_agent),
             AndroidPrepareSocialActionTool(phone_agent=self.phone_agent),
             AndroidExecuteSocialActionTool(phone_agent=self.phone_agent),
+            # Phase 8: Memory tools
+            MemoryGetPreferenceTool(memory_manager=self.memory),
+            MemorySetPreferenceTool(memory_manager=self.memory),
+            MemorySearchTool(memory_manager=self.memory),
+            MemoryForgetTool(memory_manager=self.memory),
+            MemoryExplainTool(memory_manager=self.memory),
+            # Phase 8: Scheduler tools
+            SchedulerListJobsTool(scheduler=self.scheduler),
+            SchedulerScheduleJobTool(scheduler=self.scheduler),
+            SchedulerCancelJobTool(scheduler=self.scheduler),
+            # Phase 8: Notification tools
+            NotificationsListTool(notification_center=self.notifications),
+            NotificationsDismissTool(notification_center=self.notifications),
         ]
         for t in default_tools:
             self.tools.register(t)
@@ -473,6 +608,18 @@ class Orchestrator:
         # Clean wake word and normalize Hinglish/Hindi
         clean_query = HinglishNormalizer.strip_wake_word(query, wake_word=self.settings.WAKE_WORD)
         normalized = HinglishNormalizer.normalize(clean_query, self.context)
+
+        # Phase 8: Preference-aware resolution (e.g. "open browser" -> user's preferred browser)
+        pref_browser = self.memory.get_preference("preferred_browser")
+        if pref_browser:
+            norm_lower = normalized.lower()
+            if "open browser" in norm_lower:
+                normalized = normalized.replace("open browser", f"open {pref_browser}")
+            elif "open my browser" in norm_lower:
+                normalized = normalized.replace("open my browser", f"open {pref_browser}")
+            elif "browser kholo" in norm_lower:
+                normalized = normalized.replace("browser kholo", f"{pref_browser} kholo")
+
         task.metadata["normalized_query"] = normalized
 
         # Audit & Event publish
@@ -484,6 +631,33 @@ class Orchestrator:
         self.emergency.register_task(task.id, async_task)
 
         return task
+
+    async def submit_multi_agent_goal(self, goal: str) -> TaskDAG:
+        """Decomposes a multi-agent goal into a dependency DAG and coordinates subtask executions."""
+        dag = TaskDecomposer.decompose(goal)
+        self.audit.log_event("multi_agent_dag_created", details={"dag_id": dag.dag_id, "subtasks": [st.model_dump() for st in dag.subtasks]})
+
+        while not dag.is_all_completed() and not dag.is_failed():
+            ready = dag.get_ready_subtasks()
+            if not ready:
+                break
+            for st in ready:
+                st.status = "running"
+                sub_task = await self.submit_task(st.title)
+                while sub_task.status in (
+                    TaskStatus.PENDING,
+                    TaskStatus.PLANNING,
+                    TaskStatus.WAITING_FOR_PERMISSION,
+                    TaskStatus.EXECUTING,
+                    TaskStatus.VERIFYING,
+                ):
+                    await asyncio.sleep(0.05)
+
+                if sub_task.status == TaskStatus.COMPLETED:
+                    dag.mark_completed(st.id, AgentResponse.success(summary=f"Subtask '{st.title}' completed successfully."))
+                else:
+                    dag.mark_failed(st.id, f"Subtask '{st.title}' failed: {sub_task.error}")
+        return dag
 
     async def _run_task_pipeline(self, task: Task) -> None:
         try:
@@ -508,11 +682,27 @@ class Orchestrator:
             def on_step(t: Task, step_msg: str):
                 self.events.publish(EventType.TASK_STARTED, task_id=t.id, data={"message": step_msg})
 
+            # Phase 8: Save execution checkpoint in task memory
+            self.memory.task_memory.save_checkpoint(
+                task_id=task.id,
+                stage="EXECUTING",
+                step_index=0,
+                state={"query": task.user_request, "normalized": task.metadata.get("normalized_query")},
+            )
+
             await self.executor.execute_task(task, on_step_update=on_step)
 
-            # 3. CONTEXT UPDATE
+            # 3. CONTEXT & MEMORY UPDATE
             if task.status == TaskStatus.COMPLETED:
                 self.context.recent_history.append(task.user_request)
+                self.memory.episodic.record_episode(
+                    task_id=task.id,
+                    query=task.user_request,
+                    summary=f"Task completed successfully: {task.metadata.get('normalized_query', task.user_request)}",
+                    status="completed",
+                    artifacts=task.metadata.get("artifacts", []),
+                )
+                self.memory.task_memory.clear_checkpoint(task.id)
 
         except asyncio.CancelledError:
             task.transition_to(TaskStatus.CANCELLED, "Task aborted by user or emergency stop.")

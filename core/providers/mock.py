@@ -122,6 +122,38 @@ class MockProvider(LLMProvider):
                 ]
             )
 
+        # Phase 6: Presentation Deck Generation
+        if "presentation" in query or "slide" in query or "pitch deck" in query:
+            return TaskPlan(
+                goal=user_query,
+                rationale="Generate presentation slides and pitch deck",
+                steps=[
+                    PlanStep(
+                        id="1",
+                        tool="presentation.generate_deck",
+                        action="Generate presentation slides deck",
+                        arguments={"topic": "Project Overview", "slide_count": 5},
+                        expected_outcome="Presentation deck generated",
+                    )
+                ]
+            )
+
+        # Phase 6: Documentation Generation
+        if "documentation" in query or "readme" in query or "write docs" in query:
+            return TaskPlan(
+                goal=user_query,
+                rationale="Generate documentation and README",
+                steps=[
+                    PlanStep(
+                        id="1",
+                        tool="documentation.generate_readme",
+                        action="Generate README documentation",
+                        arguments={"project_path": "."},
+                        expected_outcome="README generated",
+                    )
+                ]
+            )
+
         # Phase 5: Autonomous Research Workflow
         if "research" in query:
             topic = query.replace("research", "").replace("find", "").replace("papers", "").replace("pe", "").replace("karo", "").strip()
@@ -139,16 +171,16 @@ class MockProvider(LLMProvider):
                     ),
                     PlanStep(
                         id="2",
-                        tool="research.synthesize",
+                        tool="research.summarize",
                         action=f"Synthesize structured report with citations for '{topic}'",
                         arguments={"topic": topic},
                         expected_outcome="Structured research report generated"
                     ),
                     PlanStep(
                         id="3",
-                        tool="research.save_report",
+                        tool="research.save",
                         action="Save research report artifacts to disk",
-                        arguments={"topic": topic},
+                        arguments={"query": topic},
                         expected_outcome="Report markdown and sources saved"
                     )
                 ]

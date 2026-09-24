@@ -147,24 +147,29 @@ class ApplicationManager:
             for r in to_remove:
                 procs.remove(r)
                 terminated_count += 1
+            if hasattr(self.adapter, "windows"):
+                wins = list(self.adapter.windows.values())
+                for w in wins:
+                    if clean_target and (clean_target in w.title.lower() or (w.app_name and clean_target in w.app_name.lower())):
+                        self.adapter.windows.pop(w.handle, None)
+        else:
+            # Terminate real processes
+            for proc in psutil.process_iter(["pid", "name"]):
+                try:
+                    match = False
+                    if pid and proc.info["pid"] == pid:
+                        match = True
+                    elif clean_target and clean_target in (proc.info["name"] or "").lower():
+                        match = True
 
-        # Terminate processes
-        for proc in psutil.process_iter(["pid", "name"]):
-            try:
-                match = False
-                if pid and proc.info["pid"] == pid:
-                    match = True
-                elif clean_target and clean_target in (proc.info["name"] or "").lower():
-                    match = True
-
-                if match:
-                    if force:
-                        proc.kill()
-                    else:
-                        proc.terminate()
-                    terminated_count += 1
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                continue
+                    if match:
+                        if force:
+                            proc.kill()
+                        else:
+                            proc.terminate()
+                        terminated_count += 1
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
 
         await asyncio.sleep(0.4)
 
@@ -175,16 +180,17 @@ class ApplicationManager:
                 if (pid and lp.get("pid") == pid) or (clean_target and clean_target in str(lp.get("executable", "")).lower()):
                     still_running = True
                     break
-        for proc in psutil.process_iter(["pid", "name"]):
-            try:
-                if pid and proc.info["pid"] == pid:
-                    still_running = True
-                    break
-                elif clean_target and clean_target in (proc.info["name"] or "").lower():
-                    still_running = True
-                    break
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                continue
+        else:
+            for proc in psutil.process_iter(["pid", "name"]):
+                try:
+                    if pid and proc.info["pid"] == pid:
+                        still_running = True
+                        break
+                    elif clean_target and clean_target in (proc.info["name"] or "").lower():
+                        still_running = True
+                        break
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
 
         return {
             "target": app_name or pid,
