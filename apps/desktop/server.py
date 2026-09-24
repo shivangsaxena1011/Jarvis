@@ -668,6 +668,143 @@ async def update_settings_data(req: UpdateSettingsRequest):
 
 
 # ==============================================================================
+# PROACTIVE INTELLIGENCE & AUTOMATION APIS (PHASE 15)
+# ==============================================================================
+
+class CreateAutomationPromptRequest(BaseModel):
+    prompt: str
+    owner: str = "user"
+
+
+class EditAutomationPromptRequest(BaseModel):
+    prompt: str
+
+
+class RunAutomationRequest(BaseModel):
+    dry_run: bool = False
+    context: Dict[str, Any] = Field(default_factory=dict)
+
+
+@app.get("/api/automations")
+async def list_automations(status: Optional[str] = None):
+    from core.automation.models import AutomationStatus
+    stat = None
+    if status:
+        try:
+            stat = AutomationStatus(status.upper())
+        except ValueError:
+            pass
+    automations = orchestrator.automation.list_automations(status=stat)
+    return [a.model_dump() for a in automations]
+
+
+@app.post("/api/automations")
+async def create_automation(auto_data: Dict[str, Any]):
+    from core.automation.dsl import AutomationDSL
+    ok, errors, auto = AutomationDSL.validate_automation(auto_data)
+    if not ok or not auto:
+        raise HTTPException(status_code=400, detail={"errors": errors})
+    saved = orchestrator.automation.create_automation(auto)
+    return saved.model_dump()
+
+
+@app.post("/api/automations/create_prompt")
+async def create_automation_from_prompt(req: CreateAutomationPromptRequest):
+    auto = orchestrator.automation.create_from_prompt(req.prompt, owner=req.owner)
+    preview = orchestrator.automation.preview_automation(auto)
+    return {
+        "success": True,
+        "automation": auto.model_dump(),
+        "preview": preview,
+    }
+
+
+@app.get("/api/automations/templates")
+async def get_automation_templates():
+    templates = orchestrator.automation.get_templates()
+    return [t.model_dump() for t in templates]
+
+
+@app.get("/api/automations/analytics")
+async def get_automation_analytics():
+    return orchestrator.automation.get_analytics()
+
+
+@app.get("/api/automations/history")
+async def get_automation_history(limit: int = 50):
+    runs = orchestrator.automation.get_history(limit=limit)
+    return [r.model_dump() for r in runs]
+
+
+@app.post("/api/automations/preview")
+async def preview_automation(data: Dict[str, Any]):
+    return orchestrator.automation.preview_automation(data)
+
+
+@app.post("/api/automations/validate")
+async def validate_automation(data: Dict[str, Any]):
+    from core.automation.dsl import AutomationDSL
+    ok, errs, auto = AutomationDSL.validate_automation(data)
+    return {"valid": ok, "errors": errs, "name": auto.name if auto else None}
+
+
+@app.get("/api/automations/{automation_id}")
+async def get_automation(automation_id: str):
+    auto = orchestrator.automation.get_automation(automation_id)
+    if not auto:
+        raise HTTPException(status_code=404, detail="Automation not found")
+    return auto.model_dump()
+
+
+@app.post("/api/automations/{automation_id}/run")
+async def run_automation(automation_id: str, req: RunAutomationRequest = RunAutomationRequest()):
+    run = await orchestrator.automation.run_automation_now(
+        automation_id, trigger_context=req.context, dry_run=req.dry_run
+    )
+    if not run:
+        raise HTTPException(status_code=404, detail="Automation not found")
+    return run.model_dump()
+
+
+@app.post("/api/automations/{automation_id}/pause")
+async def pause_automation(automation_id: str):
+    ok = orchestrator.automation.pause_automation(automation_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Automation not found")
+    return {"success": True, "automation_id": automation_id, "status": "PAUSED"}
+
+
+@app.post("/api/automations/{automation_id}/resume")
+async def resume_automation(automation_id: str):
+    ok = orchestrator.automation.resume_automation(automation_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Automation not found")
+    return {"success": True, "automation_id": automation_id, "status": "ACTIVE"}
+
+
+@app.post("/api/automations/{automation_id}/edit")
+async def edit_automation(automation_id: str, req: EditAutomationPromptRequest):
+    updated = orchestrator.automation.edit_from_prompt(automation_id, req.prompt)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Automation not found")
+    return updated.model_dump()
+
+
+@app.delete("/api/automations/{automation_id}")
+async def delete_automation(automation_id: str):
+    ok = orchestrator.automation.delete_automation(automation_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Automation not found")
+    return {"success": True, "automation_id": automation_id}
+
+
+@app.get("/api/automations/{automation_id}/history")
+async def get_single_automation_history(automation_id: str, limit: int = 50):
+    runs = orchestrator.automation.get_history(automation_id=automation_id, limit=limit)
+    return [r.model_dump() for r in runs]
+
+
+# ==============================================================================
 # EMERGENCY STOP & AUDIT
 # ==============================================================================
 

@@ -228,6 +228,7 @@ function switchView(viewName) {
   else if (viewName === 'notifications') refreshNotificationsView();
   else if (viewName === 'security') refreshSecurityView();
   else if (viewName === 'settings') refreshSettingsView();
+  else if (viewName === 'automations') { loadAutomations(); loadAutomationAnalytics(); }
 }
 
 
@@ -1137,3 +1138,230 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+
+// ==============================================================================
+// AUTOMATIONS CENTER (PHASE 15)
+// ==============================================================================
+
+async function loadAutomations() {
+  const grid = document.getElementById('automationsGrid');
+  if (!grid) return;
+  try {
+    const res = await fetch('/api/automations');
+    const automations = await res.json();
+    if (!automations || automations.length === 0) {
+      grid.innerHTML = '<div class="empty-state">No automations registered. Use the prompt box above or safe templates.</div>';
+      return;
+    }
+    grid.innerHTML = automations.map(a => `
+      <div class="card" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <span class="badge ${a.enabled ? 'badge-success' : 'badge-warning'}" style="font-size: 11px; padding: 2px 8px; border-radius: 12px; background: ${a.enabled ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}; color: ${a.enabled ? '#10b981' : '#f59e0b'};">
+              ${a.status} (v${a.version})
+            </span>
+            <h4 style="margin: 8px 0 4px 0; font-size: 16px; color: var(--text-primary);">${escapeHtml(a.name)}</h4>
+            <p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 8px 0;">${escapeHtml(a.description || 'No description')}</p>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn-secondary auto-run-btn" data-id="${a.id}" style="padding: 4px 10px; font-size: 12px;">▶ Run</button>
+            ${a.enabled 
+              ? `<button class="btn-secondary auto-pause-btn" data-id="${a.id}" style="padding: 4px 10px; font-size: 12px;">⏸ Pause</button>` 
+              : `<button class="btn-secondary auto-resume-btn" data-id="${a.id}" style="padding: 4px 10px; font-size: 12px;">▶ Resume</button>`}
+            <button class="btn-secondary auto-delete-btn" data-id="${a.id}" style="padding: 4px 10px; font-size: 12px; color: #ef4444;">🗑 Delete</button>
+          </div>
+        </div>
+        <div style="display: flex; gap: 16px; font-size: 12px; color: var(--text-muted); border-top: 1px solid var(--border-color); padding-top: 8px; margin-top: 8px;">
+          <span>Trigger: <strong>${a.trigger.type}</strong></span>
+          <span>Next Run: <strong>${a.next_run ? new Date(a.next_run).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'N/A'}</strong></span>
+          <span>Executions: <strong>${a.run_count}</strong></span>
+          <span>Steps: <strong>${a.steps.length}</strong></span>
+        </div>
+      </div>
+    `).join('');
+
+    // Wire action buttons
+    grid.querySelectorAll('.auto-run-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        btn.textContent = 'Running...';
+        await fetch(`/api/automations/${id}/run`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dry_run: false }) });
+        alert('Automation dispatched!');
+        loadAutomations();
+        loadAutomationAnalytics();
+      });
+    });
+
+    grid.querySelectorAll('.auto-pause-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        await fetch(`/api/automations/${id}/pause`, { method: 'POST' });
+        loadAutomations();
+        loadAutomationAnalytics();
+      });
+    });
+
+    grid.querySelectorAll('.auto-resume-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        await fetch(`/api/automations/${id}/resume`, { method: 'POST' });
+        loadAutomations();
+        loadAutomationAnalytics();
+      });
+    });
+
+    grid.querySelectorAll('.auto-delete-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Are you sure you want to delete this automation?')) return;
+        const id = btn.getAttribute('data-id');
+        await fetch(`/api/automations/${id}`, { method: 'DELETE' });
+        loadAutomations();
+        loadAutomationAnalytics();
+      });
+    });
+
+  } catch (err) {
+    grid.innerHTML = '<div class="empty-state">Failed to load automations.</div>';
+  }
+}
+
+async function loadAutomationTemplates() {
+  const grid = document.getElementById('templatesGrid');
+  if (!grid) return;
+  try {
+    const res = await fetch('/api/automations/templates');
+    const templates = await res.json();
+    grid.innerHTML = templates.map(t => `
+      <div class="card" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+        <h4 style="margin: 0 0 6px 0; font-size: 15px; color: var(--accent-cyan);">${escapeHtml(t.name)}</h4>
+        <p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 10px 0;">${escapeHtml(t.description)}</p>
+        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+          Steps: <strong>${t.steps.map(s => s.name || s.action).join(' → ')}</strong>
+        </div>
+        <button class="btn-primary auto-use-template-btn" data-id="${t.id}" style="padding: 4px 12px; font-size: 12px;">Use Template</button>
+      </div>
+    `).join('');
+
+    grid.querySelectorAll('.auto-use-template-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        const tpl = templates.find(t => t.id === id);
+        if (tpl) {
+          await fetch('/api/automations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tpl) });
+          alert(`Template '${tpl.name}' activated!`);
+          document.getElementById('subtabActiveBtn').click();
+        }
+      });
+    });
+  } catch (err) {
+    grid.innerHTML = '<div class="empty-state">Failed to load templates.</div>';
+  }
+}
+
+async function loadAutomationHistory() {
+  const list = document.getElementById('autoHistoryList');
+  if (!list) return;
+  try {
+    const res = await fetch('/api/automations/history');
+    const runs = await res.json();
+    if (!runs || runs.length === 0) {
+      list.innerHTML = '<div class="empty-state">No execution runs recorded yet.</div>';
+      return;
+    }
+    list.innerHTML = runs.map(r => `
+      <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; margin-bottom: 8px;">
+        <div style="display: flex; justify-content: space-between; font-size: 13px;">
+          <span><strong>${escapeHtml(r.automation_name)}</strong> (Run: ${r.id.slice(0, 8)})</span>
+          <span style="color: ${r.status === 'COMPLETED' ? '#10b981' : '#ef4444'}; font-weight: bold;">${r.status}</span>
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+          Started: ${new Date(r.started_at).toLocaleString()} | Steps: ${r.steps.length}
+        </div>
+        ${r.errors && r.errors.length > 0 ? `<div style="color: #ef4444; font-size: 11px; margin-top: 4px;">Errors: ${escapeHtml(r.errors.join('; '))}</div>` : ''}
+      </div>
+    `).join('');
+  } catch (err) {
+    list.innerHTML = '<div class="empty-state">Failed to load history.</div>';
+  }
+}
+
+async function loadAutomationAnalytics() {
+  try {
+    const res = await fetch('/api/automations/analytics');
+    const data = await res.json();
+    const elActive = document.getElementById('metricActiveAutomations');
+    const elSuccess = document.getElementById('metricSuccessRate');
+    const elRuns = document.getElementById('metricTotalRuns');
+    const elReview = document.getElementById('metricNeedsAttention');
+    if (elActive) elActive.textContent = data.active || 0;
+    if (elSuccess) elSuccess.textContent = (data.success_rate || 100) + '%';
+    if (elRuns) elRuns.textContent = data.total_runs || 0;
+    if (elReview) elReview.textContent = data.needs_attention || 0;
+  } catch (err) {
+    console.error('Analytics load error', err);
+  }
+}
+
+// Wire Automations UI Buttons
+document.getElementById('refreshAutomationsBtn')?.addEventListener('click', () => {
+  loadAutomations();
+  loadAutomationAnalytics();
+});
+
+document.getElementById('submitAutoPromptBtn')?.addEventListener('click', async () => {
+  const input = document.getElementById('autoPromptInput');
+  const prompt = input?.value.trim();
+  if (!prompt) return;
+  input.disabled = true;
+  try {
+    const res = await fetch('/api/automations/create_prompt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert(`Automation '${data.automation.name}' created and scheduled!`);
+      input.value = '';
+      loadAutomations();
+      loadAutomationAnalytics();
+    }
+  } catch (err) {
+    alert('Failed to compile automation prompt');
+  } finally {
+    input.disabled = false;
+  }
+});
+
+// Subtabs
+document.getElementById('subtabActiveBtn')?.addEventListener('click', () => {
+  document.getElementById('subtabActiveBtn').classList.add('active');
+  document.getElementById('subtabTemplatesBtn').classList.remove('active');
+  document.getElementById('subtabHistoryBtn').classList.remove('active');
+  document.getElementById('automationsGrid').classList.remove('hidden');
+  document.getElementById('templatesGrid').classList.add('hidden');
+  document.getElementById('autoHistoryList').classList.add('hidden');
+  loadAutomations();
+});
+
+document.getElementById('subtabTemplatesBtn')?.addEventListener('click', () => {
+  document.getElementById('subtabTemplatesBtn').classList.add('active');
+  document.getElementById('subtabActiveBtn').classList.remove('active');
+  document.getElementById('subtabHistoryBtn').classList.remove('active');
+  document.getElementById('templatesGrid').classList.remove('hidden');
+  document.getElementById('automationsGrid').classList.add('hidden');
+  document.getElementById('autoHistoryList').classList.add('hidden');
+  loadAutomationTemplates();
+});
+
+document.getElementById('subtabHistoryBtn')?.addEventListener('click', () => {
+  document.getElementById('subtabHistoryBtn').classList.add('active');
+  document.getElementById('subtabActiveBtn').classList.remove('active');
+  document.getElementById('subtabTemplatesBtn').classList.remove('active');
+  document.getElementById('autoHistoryList').classList.remove('hidden');
+  document.getElementById('automationsGrid').classList.add('hidden');
+  document.getElementById('templatesGrid').classList.add('hidden');
+  loadAutomationHistory();
+});
+

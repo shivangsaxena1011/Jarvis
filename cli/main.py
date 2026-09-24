@@ -190,6 +190,45 @@ def main(argv: Optional[list] = None) -> int:
     scaffold_p.add_argument("--type", default="api", choices=["api", "tool", "app"], help="Template type")
     scaffold_p.add_argument("--out", default=".", help="Output directory")
 
+    # Automation subcommands
+    auto_parser = subparsers.add_parser("automation", help="Manage proactive automations, routines, and schedules")
+    auto_sub = auto_parser.add_subparsers(dest="automation_action")
+
+    auto_list_p = auto_sub.add_parser("list", help="List registered automations")
+    auto_list_p.add_argument("--status", choices=["active", "paused", "disabled"], help="Filter by status")
+
+    auto_create_p = auto_sub.add_parser("create", help="Create automation from natural language prompt")
+    auto_create_p.add_argument("prompt", help="Natural language prompt")
+
+    auto_edit_p = auto_sub.add_parser("edit", help="Edit automation using natural language")
+    auto_edit_p.add_argument("id", help="Automation ID")
+    auto_edit_p.add_argument("prompt", help="Modification prompt")
+
+    auto_enable_p = auto_sub.add_parser("enable", help="Enable automation")
+    auto_enable_p.add_argument("id", help="Automation ID")
+
+    auto_disable_p = auto_sub.add_parser("disable", help="Disable automation")
+    auto_disable_p.add_argument("id", help="Automation ID")
+
+    auto_pause_p = auto_sub.add_parser("pause", help="Pause automation")
+    auto_pause_p.add_argument("id", help="Automation ID")
+
+    auto_resume_p = auto_sub.add_parser("resume", help="Resume automation")
+    auto_resume_p.add_argument("id", help="Automation ID")
+
+    auto_run_p = auto_sub.add_parser("run", help="Run automation immediately")
+    auto_run_p.add_argument("id", help="Automation ID")
+    auto_run_p.add_argument("--dry-run", action="store_true", help="Simulate execution without side-effects")
+
+    auto_hist_p = auto_sub.add_parser("history", help="View automation execution history")
+    auto_hist_p.add_argument("id", nargs="?", default=None, help="Optional automation ID")
+    auto_hist_p.add_argument("--limit", type=int, default=20, help="Max run entries to display")
+
+    auto_val_p = auto_sub.add_parser("validate", help="Validate automation file")
+    auto_val_p.add_argument("path", help="Path to automation JSON file")
+
+    auto_doc_p = auto_sub.add_parser("doctor", help="Inspect automation subsystem health and metrics")
+
     args = parser.parse_args(argv)
 
     if args.command == "doctor":
@@ -218,6 +257,9 @@ def main(argv: Optional[list] = None) -> int:
     elif args.command == "skill":
         from cli.skill_cli import handle_skill_cli
         return handle_skill_cli(args)
+    elif args.command == "automation":
+        from cli.automation_cli import handle_automation_cli
+        return handle_automation_cli(args)
     else:
         parser.print_help()
         return 0

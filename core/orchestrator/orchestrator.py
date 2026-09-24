@@ -284,6 +284,16 @@ from connectors.accounts import AccountManager
 from adapters.registry import AdapterRegistry
 from adapters.browser import BrowserAppAdapter
 from adapters.android import AndroidAppAdapter
+
+# Phase 15: Proactive Intelligence, Routines, and Automation Engine
+from core.automation.engine import AutomationEngine
+from tools.automation.automation_tools import (
+    AutomationListTool,
+    AutomationCreateTool,
+    AutomationRunTool,
+    AutomationPauseTool,
+    AutomationResumeTool,
+)
 from tools.skill_tools import (
     SkillListTool,
     SkillInfoTool,
@@ -397,6 +407,14 @@ class Orchestrator:
         self.adapter_registry = AdapterRegistry()
         self.adapter_registry.register_adapter(BrowserAppAdapter(browser_agent=self.browser_agent))
         self.adapter_registry.register_adapter(AndroidAppAdapter("android", "com.android.settings", device_bridge=self.device_bridge))
+
+        # Phase 15: Proactive Intelligence, Routines, and Automation Engine
+        self.automation = AutomationEngine(
+            permission_engine=self.permissions,
+            event_bus=self.events,
+            notification_center=self.notifications,
+            orchestrator=self,
+        )
 
 
         # Register Emergency Abort Callbacks
@@ -683,6 +701,12 @@ class Orchestrator:
             SkillInfoTool(registry=self.skill_registry),
             ConnectorListTool(registry=self.connector_registry),
             AdapterListTool(registry=self.adapter_registry),
+            # Phase 15: Automation tools
+            AutomationListTool(engine=self.automation),
+            AutomationCreateTool(engine=self.automation),
+            AutomationRunTool(engine=self.automation),
+            AutomationPauseTool(engine=self.automation),
+            AutomationResumeTool(engine=self.automation),
         ]
         for t in default_tools:
             self.tools.register(t)

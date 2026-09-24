@@ -142,6 +142,7 @@
           <li><button class="nav-item" data-view="knowledge">🧠 Knowledge OS</button></li>
           <li><button class="nav-item" data-view="memory">💾 Memory</button></li>
           <li><button class="nav-item" data-view="skills">🧩 Universal Skills</button></li>
+          <li><button class="nav-item" data-view="automations">⚡ Automations & Routines</button></li>
           <li><button class="nav-item" data-view="devices">📱 Android Device</button></li>
           <li><button class="nav-item" data-view="connectors">🔗 Connectors</button></li>
           <li><button class="nav-item" data-view="artifacts">📁 Artifacts</button></li>
@@ -307,6 +308,68 @@
           <p class="section-desc">Sandboxed capabilities discovered and loaded dynamically without modifying the core runtime.</p>
           <div class="skills-grid" id="skillsGrid">
             <div class="empty-state">Loading installed skills...</div>
+          </div>
+        </section>
+
+        <!-- VIEW 6B: AUTOMATIONS CENTER (PHASE 15) -->
+        <section class="view-panel" id="view-automations" aria-label="Automation Center">
+          <div class="panel-top-bar">
+            <h2>PROACTIVE INTELLIGENCE & AUTOMATIONS</h2>
+            <div class="btn-group">
+              <button class="btn-secondary" id="refreshAutomationsBtn">🔄 Refresh</button>
+            </div>
+          </div>
+          <p class="section-desc">Manage scheduled routines, event triggers, background tasks, and safe autonomous workflows.</p>
+
+          <!-- Top Analytics Row -->
+          <div class="automation-analytics-row" style="display: flex; gap: 12px; margin-bottom: 20px;">
+            <div class="metric-card" style="flex: 1; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; text-align: center;">
+              <div class="metric-val" id="metricActiveAutomations" style="font-size: 20px; font-weight: bold; color: var(--accent-cyan);">0</div>
+              <div class="metric-label" style="font-size: 11px; color: var(--text-secondary);">Active Routines</div>
+            </div>
+            <div class="metric-card" style="flex: 1; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; text-align: center;">
+              <div class="metric-val" id="metricSuccessRate" style="font-size: 20px; font-weight: bold; color: var(--accent-emerald);">100%</div>
+              <div class="metric-label" style="font-size: 11px; color: var(--text-secondary);">Success Rate</div>
+            </div>
+            <div class="metric-card" style="flex: 1; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; text-align: center;">
+              <div class="metric-val" id="metricTotalRuns" style="font-size: 20px; font-weight: bold; color: var(--text-primary);">0</div>
+              <div class="metric-label" style="font-size: 11px; color: var(--text-secondary);">Total Executions</div>
+            </div>
+            <div class="metric-card" style="flex: 1; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; text-align: center;">
+              <div class="metric-val" id="metricNeedsAttention" style="font-size: 20px; font-weight: bold; color: var(--accent-amber);">0</div>
+              <div class="metric-label" style="font-size: 11px; color: var(--text-secondary);">Needs Review</div>
+            </div>
+          </div>
+
+          <!-- Natural Language Builder Card -->
+          <div class="builder-card" style="margin-bottom: 20px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px;">
+            <h3 style="font-size: 14px; margin-bottom: 8px;">⚡ CREATE AUTOMATION (NATURAL LANGUAGE)</h3>
+            <div class="prompt-input-row" style="display: flex; gap: 8px;">
+              <input type="text" id="autoPromptInput" placeholder="e.g. 'Every weekday at 8 AM, summarize my unread emails and tasks'" style="flex: 1; padding: 8px 12px; border-radius: 6px; background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color);" />
+              <button class="btn-primary" id="submitAutoPromptBtn">Create & Activate</button>
+            </div>
+          </div>
+
+          <!-- Subtabs -->
+          <div class="automation-subtabs" style="display: flex; gap: 8px; margin-bottom: 16px;">
+            <button class="btn-secondary active" id="subtabActiveBtn">Active & Scheduled</button>
+            <button class="btn-secondary" id="subtabTemplatesBtn">Safe Templates</button>
+            <button class="btn-secondary" id="subtabHistoryBtn">Execution History</button>
+          </div>
+
+          <!-- Tab 1: Active List -->
+          <div class="automations-grid" id="automationsGrid">
+            <div class="empty-state">Loading registered automations...</div>
+          </div>
+
+          <!-- Tab 2: Templates -->
+          <div class="templates-grid hidden" id="templatesGrid">
+            <div class="empty-state">Loading templates...</div>
+          </div>
+
+          <!-- Tab 3: History -->
+          <div class="history-list hidden" id="autoHistoryList">
+            <div class="empty-state">No execution runs recorded yet.</div>
           </div>
         </section>
 
