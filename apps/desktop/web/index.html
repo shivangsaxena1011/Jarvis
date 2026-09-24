@@ -3,157 +3,456 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SHIVANI — Personal Autonomous AI Computer Agent</title>
+  <title>SHIVANI — Autonomous AI Computer Assistant</title>
   <link rel="stylesheet" href="/static/style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body class="theme-dark">
-  <div class="app-container">
-    <!-- Header -->
-    <header class="navbar">
-      <div class="brand">
-        <div class="core-orb" id="coreOrb"></div>
+<body class="theme-dark" id="appBody">
+
+  <!-- FLOATING ASSISTANT HUD (Draggable, Lightweight, State-Driven) -->
+  <aside class="floating-hud" id="floatingHud" role="region" aria-label="Floating Assistant HUD">
+    <div class="hud-drag-handle" id="hudDragHandle" title="Drag to move HUD">
+      <div class="hud-orb" id="hudOrb"></div>
+      <div class="hud-info">
+        <span class="hud-title">SHIVANI</span>
+        <span class="hud-status" id="hudStatus">READY</span>
+      </div>
+    </div>
+    <div class="hud-controls">
+      <button class="hud-btn" id="hudMicBtn" title="Push to talk / Listen" aria-label="Microphone">
+        🎤
+      </button>
+      <button class="hud-btn" id="hudCommandBtn" title="Open Command Bar (Ctrl+Space)" aria-label="Command Bar">
+        ⚡
+      </button>
+      <button class="hud-btn hud-danger" id="hudStopBtn" title="Emergency Stop" aria-label="Stop task">
+        ⏹️
+      </button>
+      <button class="hud-btn" id="hudExpandBtn" title="Expand to Full Dashboard" aria-label="Expand dashboard">
+        ⛶
+      </button>
+    </div>
+  </aside>
+
+  <!-- SPOTLIGHT GLOBAL COMMAND BAR (Ctrl + Space) -->
+  <div class="command-modal-overlay hidden" id="commandModal" role="dialog" aria-modal="true" aria-label="Quick Command Bar">
+    <div class="command-bar-box">
+      <div class="command-bar-header">
+        <div class="command-input-row">
+          <span class="command-icon">✦</span>
+          <input 
+            type="text" 
+            id="commandBarInput" 
+            placeholder="Ask Shivani anything, or type a command... (e.g. 'Open Chrome', 'Research AI OCR', 'Summarize screen')" 
+            autocomplete="off"
+            aria-label="Ask Shivani command input"
+          />
+          <button class="icon-btn" id="cmdMicBtn" title="Speak instruction">🎤</button>
+          <button class="icon-btn active-toggle" id="cmdScreenToggle" title="Include current screen context">🖥️ Screen</button>
+          <button class="btn-primary" id="cmdSendBtn">Execute</button>
+        </div>
+      </div>
+      <div class="command-bar-footer">
+        <div class="quick-hints">
+          <span class="badge-hint">Esc to close</span>
+          <span class="badge-hint">Enter to submit</span>
+          <span class="badge-hint">Wake word: "Shivani"</span>
+        </div>
+        <div class="command-suggestions" id="commandSuggestions">
+          <button class="suggestion-chip">Open VS Code</button>
+          <button class="suggestion-chip">Research AI OCR</button>
+          <button class="suggestion-chip">Find my latest python project</button>
+          <button class="suggestion-chip">What is on my screen?</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOCK SCREEN MODAL -->
+  <div class="lock-overlay hidden" id="lockOverlay" role="dialog" aria-modal="true" aria-label="Assistant Locked">
+    <div class="lock-card">
+      <div class="lock-icon">🔒</div>
+      <h2>SHIVANI IS LOCKED</h2>
+      <p>Enter your 4-digit PIN to resume access.</p>
+      <div class="pin-input-group">
+        <input type="password" id="pinInput" maxlength="8" placeholder="Enter PIN (Default: 1234)" />
+        <button class="btn-primary" id="unlockBtn">Unlock</button>
+      </div>
+      <p class="error-text hidden" id="unlockError">Invalid PIN. Try again.</p>
+    </div>
+  </div>
+
+  <!-- MAIN WORKSTATION SHELL -->
+  <div class="app-layout" id="mainLayout">
+    
+    <!-- Top Global Navbar -->
+    <header class="top-navbar" role="banner">
+      <div class="nav-brand">
+        <div class="core-orb" id="navCoreOrb"></div>
         <div class="brand-text">
-          <h1>SHIVANI</h1>
-          <span class="subtext">AUTONOMOUS OPERATING LAYER</span>
+          <h1 class="brand-name">SHIVANI</h1>
+          <span class="brand-subtitle">AUTONOMOUS OPERATING ASSISTANT</span>
         </div>
       </div>
 
-      <div class="status-badge" id="systemStateBadge">
-        <span class="pulse-dot"></span>
-        <span id="agentStateText">IDLE</span>
+      <!-- Center Assistant Status Badge -->
+      <div class="assistant-state-pill" id="assistantStateBadge" role="status" aria-live="polite">
+        <span class="pulse-indicator" id="statePulseDot"></span>
+        <span class="state-label" id="assistantStateLabel">READY</span>
+        <span class="sub-step" id="assistantSubStepLabel"></span>
       </div>
 
-      <div class="header-actions">
-        <button id="startListeningBtn" class="btn-voice" title="Start listening for voice wake word">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-          Start Listening
+      <!-- Right Action Bar -->
+      <div class="nav-actions">
+        <button class="action-btn" id="quickVoiceBtn" title="Start listening / Push to talk">
+          🎤 <span class="btn-text">Voice</span>
         </button>
-        <button id="emergencyStopBtn" class="btn-danger" title="Immediate abort of all active operations">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><rect x="9" y="9" width="6" height="6"/></svg>
-          Stop
+        <button class="action-btn toggle-privacy" id="privacyModeBtn" title="Toggle Privacy Mode">
+          🛡️ <span class="btn-text" id="privacyBtnLabel">Privacy</span>
         </button>
-        <button id="settingsBtn" class="btn-secondary" title="System Settings">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          Settings
+        <button class="action-btn" id="lockAssistantBtn" title="Lock Assistant">
+          🔒 <span class="btn-text">Lock</span>
         </button>
-        <button id="taskHistoryBtn" class="btn-secondary" title="View Task History">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"/></svg>
-          Task History
+        <button class="action-btn btn-danger" id="emergencyStopNavBtn" title="Emergency Stop (Ctrl+Shift+X)">
+          ⏹️ <span class="btn-text">STOP</span>
         </button>
+
+        <!-- Theme Selector -->
+        <div class="theme-picker">
+          <select id="themeSelect" aria-label="Select color theme">
+            <option value="theme-dark">Dark</option>
+            <option value="theme-light">Light</option>
+            <option value="theme-luminous">Luminous Cyber</option>
+          </select>
+        </div>
       </div>
     </header>
 
-    <!-- Main Dashboard Grid -->
-    <main class="dashboard-grid">
-      <!-- Left Panel: Command Input & Active Task -->
-      <section class="panel command-panel">
-        <div class="panel-header">
-          <h2>COMMAND CENTER</h2>
-          <span class="badge" id="providerBadge">MOCK LLM</span>
+    <!-- App Body: Sidebar + Main Content -->
+    <div class="content-container">
+      
+      <!-- Left Sidebar Navigation -->
+      <nav class="sidebar" role="navigation" aria-label="Main Navigation">
+        <ul class="nav-menu">
+          <li><button class="nav-item active" data-view="conversation">💬 Assistant Chat</button></li>
+          <li><button class="nav-item" data-view="tasks">⚡ Live Tasks <span class="counter-badge" id="tasksBadge">0</span></button></li>
+          <li><button class="nav-item" data-view="approvals">🛡️ Approvals <span class="counter-badge alert-badge hidden" id="approvalsBadge">0</span></button></li>
+          <li><button class="nav-item" data-view="knowledge">🧠 Knowledge OS</button></li>
+          <li><button class="nav-item" data-view="memory">💾 Memory</button></li>
+          <li><button class="nav-item" data-view="skills">🧩 Universal Skills</button></li>
+          <li><button class="nav-item" data-view="devices">📱 Android Device</button></li>
+          <li><button class="nav-item" data-view="connectors">🔗 Connectors</button></li>
+          <li><button class="nav-item" data-view="artifacts">📁 Artifacts</button></li>
+          <li><button class="nav-item" data-view="notifications">🔔 Notifications <span class="counter-badge" id="notifBadge">0</span></button></li>
+          <li><button class="nav-item" data-view="security">🔒 Security</button></li>
+          <li><button class="nav-item" data-view="diagnostics">🩺 Diagnostics</button></li>
+          <li><button class="nav-item" data-view="settings">⚙️ Settings</button></li>
+        </ul>
+
+        <div class="sidebar-footer">
+          <div class="footer-status-row">
+            <span class="status-dot green" id="wsIndicator"></span>
+            <span id="wsStatusText">Connected</span>
+          </div>
+          <div class="language-pill" id="currentLangPill">🌐 Hinglish / English</div>
         </div>
+      </nav>
 
-        <form id="commandForm" class="command-box">
-          <div class="input-wrapper">
-            <input 
-              type="text" 
-              id="commandInput" 
-              placeholder="e.g. 'Open Chrome' or 'Shivani, screenshot capture karo'..." 
-              autocomplete="off"
-              required 
-            />
-            <button type="submit" id="sendBtn" class="btn-primary">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-              Execute
-            </button>
-          </div>
-          <div class="hint-text">
-            <span>Wake word: <strong>"Shivani"</strong></span>
-            <span>Principle: <strong>OBSERVE → PLAN → ACT → VERIFY</strong></span>
-          </div>
-        </form>
+      <!-- Central View Workspace -->
+      <main class="view-viewport" role="main">
 
-        <!-- Current Active Task Status -->
-        <div class="active-task-container" id="activeTaskCard">
-          <div class="task-label">CURRENT TASK</div>
-          <div class="empty-state" id="noActiveTaskMsg">None</div>
-          <div class="task-details hidden" id="taskDetailsContent">
-            <div class="task-header">
-              <div class="task-query" id="currentTaskQuery">...</div>
-              <span class="task-badge" id="currentTaskStateBadge">PLANNING</span>
-            </div>
-            <div class="task-progress-bar">
-              <div class="progress-fill" id="taskProgressBar"></div>
-            </div>
-            <div class="current-step-label" id="currentStepLabel">Analyzing task intent...</div>
-          </div>
-        </div>
-
-        <!-- Approval Card / Modal -->
-        <div class="approval-card hidden" id="approvalCard">
-          <div class="approval-header">
-            <div class="warning-icon">⚠️</div>
-            <div>
-              <h3>APPROVAL REQUIRED</h3>
-              <span class="risk-tag" id="approvalRisk">CRITICAL</span>
+        <!-- VIEW 1: CONVERSATION & ASSISTANT -->
+        <section class="view-panel active" id="view-conversation" aria-label="Conversation View">
+          <div class="conversation-header">
+            <h2>CONVERSATIONAL ASSISTANT</h2>
+            <div class="header-pills">
+              <span class="pill-tag" id="activeAgentPill">Computer Agent</span>
+              <span class="pill-tag" id="llmModelPill">Gemini Flash</span>
             </div>
           </div>
-          <p id="approvalDesc" class="approval-desc">Tool requires authorization.</p>
-          <div class="approval-target">
-            <strong>Target: </strong><span id="approvalTargetText">--</span>
-          </div>
-          <div class="approval-actions">
-            <button id="approveBtn" class="btn-approve">Approve</button>
-            <button id="rejectBtn" class="btn-reject">Reject</button>
-          </div>
-        </div>
-      </section>
 
-      <!-- Right Panel: Recent Activity & Event Timeline -->
-      <section class="panel timeline-panel">
-        <div class="panel-header">
-          <h2>RECENT ACTIVITY</h2>
-          <span class="refresh-indicator" id="wsStatus">● Connected</span>
-        </div>
-        
-        <div class="timeline-container" id="timelineList">
-          <div class="timeline-item default-item">
-            <div class="timeline-time">System</div>
-            <div class="timeline-content">Tool registry loaded with baseline system tools.</div>
+          <div class="chat-stream" id="chatStream" role="log" aria-live="polite">
+            <!-- Messages inserted dynamically -->
+            <div class="chat-msg assistant">
+              <div class="msg-avatar">✦</div>
+              <div class="msg-bubble">
+                <p>Hello! I am <strong>Shivani</strong>, your autonomous personal computer assistant. You can speak to me, type instructions, or ask me to handle multi-step computer tasks, research, coding, or phone control.</p>
+                <div class="msg-suggestions">
+                  <button class="chat-chip" onclick="handleChipClick('Open Chrome')">Open Chrome</button>
+                  <button class="chat-chip" onclick="handleChipClick('Research AI OCR and summarize findings')">Research AI OCR</button>
+                  <button class="chat-chip" onclick="handleChipClick('Find my latest Python project')">Find Python project</button>
+                  <button class="chat-chip" onclick="handleChipClick('Shivani, phone mein Instagram kholo')">Phone mein Instagram kholo</button>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="timeline-item default-item">
-            <div class="timeline-time">System</div>
-            <div class="timeline-content">AI Provider connected and operational.</div>
-          </div>
-          <div class="timeline-item default-item">
-            <div class="timeline-time">System</div>
-            <div class="timeline-content">System started successfully. Event bus active.</div>
-          </div>
-        </div>
-      </section>
-    </main>
 
-    <!-- Bottom Status Bar -->
-    <footer class="footer-bar">
-      <div class="footer-item">
-        <span>Registered Tools:</span>
-        <strong id="toolCount">14</strong>
-      </div>
-      <div class="footer-item">
-        <span>System Health:</span>
-        <strong id="healthStatus" style="color: #10b981;">Healthy</strong>
-      </div>
-      <div class="footer-item">
-        <span>Environment:</span>
-        <strong id="envName">Development</strong>
-      </div>
-      <div class="footer-item">
-        <span>Audit Log:</span>
-        <strong id="auditFile">audit.jsonl</strong>
-      </div>
+          <!-- Bottom Interaction Bar -->
+          <div class="chat-input-bar">
+            <form id="chatForm" class="chat-form">
+              <div class="input-controls-group">
+                <button type="button" class="btn-tool" id="screenContextToggle" title="Attach Current Screen Context">🖥️ Screen</button>
+                <button type="button" class="btn-tool" id="fileAttachBtn" title="Attach file">📎 File</button>
+                <input type="file" id="hiddenFileInput" class="hidden" />
+                <input 
+                  type="text" 
+                  id="chatInput" 
+                  placeholder="Ask Shivani or issue a command... (English, Hindi or Hinglish)" 
+                  autocomplete="off" 
+                  required
+                />
+                <button type="button" class="btn-mic" id="chatMicBtn" title="Push-to-Talk / Listen">🎤</button>
+                <button type="submit" class="btn-submit" id="chatSendBtn">Send</button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <!-- VIEW 2: LIVE TASKS & TIMELINE -->
+        <section class="view-panel" id="view-tasks" aria-label="Tasks Dashboard">
+          <div class="panel-top-bar">
+            <h2>LIVE TASK DASHBOARD & TIMELINE</h2>
+            <button class="btn-secondary" id="refreshTasksBtn">🔄 Refresh</button>
+          </div>
+
+          <div class="tasks-layout-grid">
+            <div class="tasks-list-col">
+              <h3>ACTIVE & RECENT TASKS</h3>
+              <div class="task-cards-list" id="taskCardsContainer">
+                <div class="empty-state">No active tasks.</div>
+              </div>
+            </div>
+
+            <div class="task-timeline-col">
+              <h3>EXECUTION TIMELINE & AGENT PIPELINE</h3>
+              <div class="timeline-box" id="taskTimelineBox">
+                <div class="empty-state">Select a task on the left to inspect its live execution timeline.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 3: APPROVALS -->
+        <section class="view-panel" id="view-approvals" aria-label="Approvals Center">
+          <div class="panel-top-bar">
+            <h2>RISK APPROVAL CENTER</h2>
+            <span class="badge" id="pendingApprovalsCount">0 Pending</span>
+          </div>
+          <p class="section-desc">Operations involving sensitive data, external communications, financial actions, or destructive filesystem changes require your explicit authorization.</p>
+
+          <div class="approvals-cards-grid" id="approvalsCardsGrid">
+            <div class="empty-state">No pending approval requests. All systems operating within approved limits.</div>
+          </div>
+        </section>
+
+        <!-- VIEW 4: KNOWLEDGE OS -->
+        <section class="view-panel" id="view-knowledge" aria-label="Knowledge OS">
+          <div class="panel-top-bar">
+            <h2>PERSONAL KNOWLEDGE OS</h2>
+            <div class="search-input-wrapper">
+              <input type="text" id="knowledgeSearchInput" placeholder="Search Unified Workspace, code, notes, docs..." />
+              <button class="btn-secondary" id="searchKnowledgeBtn">Search</button>
+            </div>
+          </div>
+
+          <div class="knowledge-grid">
+            <div class="knowledge-col">
+              <h3>SEARCH RESULTS</h3>
+              <div class="knowledge-results" id="knowledgeResults">
+                <div class="empty-state">Type a query above to explore personal workspace intelligence.</div>
+              </div>
+            </div>
+            <div class="knowledge-col">
+              <h3>ADD QUICK NOTE</h3>
+              <form id="addNoteForm" class="standard-form">
+                <input type="text" id="noteTitleInput" placeholder="Note Title" required />
+                <textarea id="noteContentInput" rows="4" placeholder="Note content..." required></textarea>
+                <input type="text" id="noteTagsInput" placeholder="Tags (comma separated, e.g. project, architecture)" />
+                <button type="submit" class="btn-primary">Save to Knowledge OS</button>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 5: MEMORY -->
+        <section class="view-panel" id="view-memory" aria-label="Memory Center">
+          <div class="panel-top-bar">
+            <h2>LONG-TERM MEMORY & PREFERENCES</h2>
+            <button class="btn-secondary" id="refreshMemoryBtn">🔄 Refresh</button>
+          </div>
+          <div class="memory-grid">
+            <div class="memory-col">
+              <h3>LEARNED USER PREFERENCES</h3>
+              <div class="preferences-list" id="preferencesList">
+                <div class="empty-state">Loading user preferences...</div>
+              </div>
+            </div>
+            <div class="memory-col">
+              <h3>REMEMBERED FACTS & ENTITIES</h3>
+              <div class="facts-list" id="factsList">
+                <div class="empty-state">Loading episodic memory...</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 6: UNIVERSAL SKILLS -->
+        <section class="view-panel" id="view-skills" aria-label="Universal Skills">
+          <div class="panel-top-bar">
+            <h2>UNIVERSAL SKILLS & EXTENSIBILITY</h2>
+            <button class="btn-secondary" id="refreshSkillsBtn">🔄 Refresh</button>
+          </div>
+          <p class="section-desc">Sandboxed capabilities discovered and loaded dynamically without modifying the core runtime.</p>
+          <div class="skills-grid" id="skillsGrid">
+            <div class="empty-state">Loading installed skills...</div>
+          </div>
+        </section>
+
+        <!-- VIEW 7: ANDROID DEVICES -->
+        <section class="view-panel" id="view-devices" aria-label="Android Device Companion">
+          <div class="panel-top-bar">
+            <h2>ANDROID DEVICE COMPANION & BRIDGE</h2>
+            <button class="btn-secondary" id="refreshDevicesBtn">🔄 Check Bridge</button>
+          </div>
+          <div class="devices-grid" id="devicesGrid">
+            <div class="empty-state">Checking connected Android companions...</div>
+          </div>
+        </section>
+
+        <!-- VIEW 8: CONNECTORS & ACCOUNTS -->
+        <section class="view-panel" id="view-connectors" aria-label="Connectors and Accounts">
+          <div class="panel-top-bar">
+            <h2>APP CONNECTORS & MULTI-ACCOUNT VAULT</h2>
+            <button class="btn-secondary" id="refreshConnectorsBtn">🔄 Refresh</button>
+          </div>
+          <div class="connectors-grid" id="connectorsGrid">
+            <div class="empty-state">Loading connected accounts...</div>
+          </div>
+        </section>
+
+        <!-- VIEW 9: ARTIFACTS -->
+        <section class="view-panel" id="view-artifacts" aria-label="Artifacts Gallery">
+          <div class="panel-top-bar">
+            <h2>ARTIFACT CENTER</h2>
+            <button class="btn-secondary" id="refreshArtifactsBtn">🔄 Refresh</button>
+          </div>
+          <div class="artifacts-grid" id="artifactsGrid">
+            <div class="empty-state">No artifacts generated yet.</div>
+          </div>
+        </section>
+
+        <!-- VIEW 10: NOTIFICATIONS -->
+        <section class="view-panel" id="view-notifications" aria-label="Notification Center">
+          <div class="panel-top-bar">
+            <h2>NOTIFICATION CENTER</h2>
+            <button class="btn-secondary" id="clearNotifsBtn">Clear All</button>
+          </div>
+          <div class="notifications-list" id="notificationsList">
+            <div class="empty-state">No new notifications.</div>
+          </div>
+        </section>
+
+        <!-- VIEW 11: SECURITY & PRIVACY -->
+        <section class="view-panel" id="view-security" aria-label="Security Center">
+          <div class="panel-top-bar">
+            <h2>SECURITY & PRIVACY DASHBOARD</h2>
+            <button class="btn-secondary" id="refreshSecurityBtn">🔄 Refresh</button>
+          </div>
+          <div class="security-status-cards" id="securityStatusCards">
+            <div class="empty-state">Loading security metrics...</div>
+          </div>
+          <h3>RECENT AUDIT & SECURITY LOGS</h3>
+          <div class="audit-log-box" id="auditLogBox">
+            <div class="empty-state">Loading audit trail...</div>
+          </div>
+        </section>
+
+        <!-- VIEW 12: DIAGNOSTICS -->
+        <section class="view-panel" id="view-diagnostics" aria-label="Diagnostics Doctor">
+          <div class="panel-top-bar">
+            <h2>SHIVANI SYSTEM DOCTOR & DIAGNOSTICS</h2>
+            <div class="doctor-actions">
+              <button class="btn-primary" id="runQuickDoctorBtn">🩺 Run Quick Check</button>
+              <button class="btn-secondary" id="runFullDoctorBtn">🔬 Run Full Diagnostics</button>
+            </div>
+          </div>
+          <div class="diagnostics-results-box" id="diagnosticsResultsBox">
+            <div class="empty-state">Click "Run Quick Check" to test system health across core, voice, tools, and storage.</div>
+          </div>
+        </section>
+
+        <!-- VIEW 13: SETTINGS -->
+        <section class="view-panel" id="view-settings" aria-label="Settings and Persona">
+          <div class="panel-top-bar">
+            <h2>SETTINGS & ASSISTANT PERSONA</h2>
+          </div>
+          <form id="settingsForm" class="settings-form-grid">
+            <div class="setting-group">
+              <label for="settingLang">Preferred Language</label>
+              <select id="settingLang">
+                <option value="auto">Auto-Detect</option>
+                <option value="hinglish">Hinglish (Hindi + English)</option>
+                <option value="en">English Only</option>
+                <option value="hi">Hindi Only</option>
+              </select>
+            </div>
+            <div class="setting-group">
+              <label for="settingTone">Assistant Tone</label>
+              <select id="settingTone">
+                <option value="friendly">Friendly & Natural</option>
+                <option value="professional">Professional & Technical</option>
+                <option value="casual">Casual & Relaxed</option>
+              </select>
+            </div>
+            <div class="setting-group">
+              <label for="settingStyle">Response Detail</label>
+              <select id="settingStyle">
+                <option value="concise">Concise (Direct action summary)</option>
+                <option value="balanced">Balanced (Clear explanations)</option>
+                <option value="detailed">Detailed (Full reasoning & steps)</option>
+              </select>
+            </div>
+            <div class="setting-group">
+              <label for="settingSpeed">Speech Playback Speed</label>
+              <input type="range" id="settingSpeed" min="0.8" max="1.5" step="0.1" value="1.0" />
+              <span id="speedValueLabel">1.0x</span>
+            </div>
+            <div class="setting-action-row">
+              <button type="submit" class="btn-primary">Save Preferences</button>
+            </div>
+          </form>
+        </section>
+
+      </main>
+    </div>
+
+    <!-- Bottom Global Footer -->
+    <footer class="app-footer" role="contentinfo">
+      <div class="footer-stat">Registered Tools: <strong id="footToolCount">163</strong></div>
+      <div class="footer-stat">System: <strong id="footHealthStatus">Healthy</strong></div>
+      <div class="footer-stat">Active Agent: <strong id="footActiveAgent">None</strong></div>
+      <div class="footer-stat">Privacy: <strong id="footPrivacyStatus">Standard</strong></div>
+      <div class="footer-stat hotkey-hint">Command Bar: <kbd>Ctrl</kbd> + <kbd>Space</kbd></div>
     </footer>
+  </div>
+
+  <!-- Artifact Preview Modal -->
+  <div class="modal-overlay hidden" id="artifactModal" role="dialog" aria-modal="true" aria-label="Artifact Preview">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="artifactModalTitle">Artifact Preview</h3>
+        <button class="modal-close" id="artifactModalClose">✕</button>
+      </div>
+      <div class="modal-body" id="artifactModalBody">
+        <div class="empty-state">Loading preview...</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="artifactCopyBtn">📋 Copy</button>
+        <button class="btn-primary" id="artifactDownloadBtn">💾 Download</button>
+      </div>
+    </div>
   </div>
 
   <script src="/static/app.js"></script>

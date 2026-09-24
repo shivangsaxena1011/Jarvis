@@ -48,8 +48,13 @@ class LinkedInReadFeedTool(BaseTool):
 
 
 class LinkedInPreparePostArgs(BaseModel):
-    post_text: str = Field(description="Full text content for the LinkedIn post draft")
+    post_text: str = Field(default="", description="Full text content for the LinkedIn post draft")
     image_path: Optional[str] = Field(default=None, description="Optional path to local image file to attach")
+
+    def __init__(self, **data: Any):
+        if "content" in data and not data.get("post_text"):
+            data["post_text"] = data["content"]
+        super().__init__(**data)
 
 
 class LinkedInPreparePostTool(BaseTool):

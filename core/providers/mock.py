@@ -77,7 +77,7 @@ class MockProvider(LLMProvider):
                         id="3",
                         tool="linkedin.prepare_post",
                         action="Prepare draft post in LinkedIn composer",
-                        arguments={"content": "Draft showcase post"},
+                        arguments={"post_text": "Draft showcase post", "content": "Draft showcase post"},
                         expected_outcome="Draft created on LinkedIn with DRAFT status"
                     )
                 ]
@@ -162,8 +162,8 @@ class MockProvider(LLMProvider):
             )
 
         # Phase 5: Autonomous Research Workflow
-        if "research" in query:
-            topic = query.replace("research", "").replace("find", "").replace("papers", "").replace("pe", "").replace("karo", "").strip()
+        if "research" in query or ("search" in query and "summarize" in query):
+            topic = query.replace("research", "").replace("search for", "").replace("search", "").replace("and summarize the results", "").replace("summarize", "").replace("find", "").replace("papers", "").replace("pe", "").replace("karo", "").replace("shivani", "").replace(",", "").strip()
             topic = topic or "Autonomous AI Agents"
             return TaskPlan(
                 goal=user_query,
