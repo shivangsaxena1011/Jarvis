@@ -123,7 +123,7 @@ class MockProvider(LLMProvider):
             )
 
         # Phase 6: Presentation Deck Generation
-        if "presentation" in query or "slide" in query or "pitch deck" in query:
+        if ("presentation" in query or "slide" in query or "pitch deck" in query) and not query.startswith("research"):
             return TaskPlan(
                 goal=user_query,
                 rationale="Generate presentation slides and pitch deck",
@@ -132,7 +132,14 @@ class MockProvider(LLMProvider):
                         id="1",
                         tool="presentation.generate_deck",
                         action="Generate presentation slides deck",
-                        arguments={"topic": "Project Overview", "slide_count": 5},
+                        arguments={
+                            "title": "Autonomous AI Agent Architecture",
+                            "project_name": "SHIVANI AI",
+                            "problem_statement": "Coordinating complex multi-agent goals across applications requires intelligent planning and execution.",
+                            "solution_summary": "Unified autonomous agent with vision, tools, and dynamic self-correction.",
+                            "tech_stack": ["Python", "Playwright", "FastAPI"],
+                            "key_features": ["Dynamic DAGs", "Multi-Agent Orchestration", "Visual Intelligence"],
+                        },
                         expected_outcome="Presentation deck generated",
                     )
                 ]

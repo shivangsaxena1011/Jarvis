@@ -260,6 +260,11 @@ from core.idempotency import IdempotencyManager
 from core.limits import ExecutionLimits, DEFAULT_LIMITS
 from core.modes import SafeModeController, DemoModeController
 
+# Phase 11: Advanced Agentic Planning, TaskGraphs, and Replanning
+from planning.planner import AdvancedPlanner, get_advanced_planner
+from planning.models import Goal, ExecutionStrategy, SubTaskStatus, ReplanTrigger
+from planning.dependency_graph import TaskGraph
+
 
 
 class Orchestrator:
@@ -692,6 +697,82 @@ class Orchestrator:
                 else:
                     dag.mark_failed(st.id, f"Subtask '{st.title}' failed: {sub_task.error}")
         return dag
+
+    async def submit_autonomous_goal(self, goal_query: str) -> Dict[str, Any]:
+        """
+        Phase 11 Autonomous Multi-Agent Goal Execution.
+        Parses goal, constructs TaskGraph DAG, coordinates parallel batches,
+        and dynamically self-corrects via Replanner on failure.
+        """
+        planner = get_advanced_planner(self.memory)
+        goal, graph, strategy, validation = planner.create_plan_for_goal(goal_query)
+
+        if goal.needs_clarification:
+            return {
+                "status": "needs_clarification",
+                "goal": goal.model_dump(),
+                "question": goal.clarification_question,
+                "options": goal.clarification_options,
+            }
+
+        if not validation.is_valid:
+            return {
+                "status": "invalid_plan",
+                "goal": goal.model_dump(),
+                "errors": validation.errors,
+            }
+
+        self.audit.log_event("autonomous_goal_planned", details={"goal_id": goal.id, "strategy": strategy.value, "node_count": len(graph.nodes)})
+
+        batches = graph.get_parallel_execution_batches()
+        intermediate_outputs: Dict[str, Any] = {}
+
+        for batch in batches:
+            for node in batch:
+                if node.subtask.status in (SubTaskStatus.COMPLETED, SubTaskStatus.SKIPPED):
+                    continue
+
+                node.subtask.status = SubTaskStatus.RUNNING
+                sub_task = await self.submit_task(node.subtask.title)
+
+                while sub_task.status in (
+                    TaskStatus.PENDING,
+                    TaskStatus.PLANNING,
+                    TaskStatus.WAITING_FOR_PERMISSION,
+                    TaskStatus.EXECUTING,
+                    TaskStatus.VERIFYING,
+                ):
+                    await asyncio.sleep(0.05)
+
+                if sub_task.status == TaskStatus.COMPLETED:
+                    res_payload = {"summary": sub_task.result or "Completed", "artifacts": sub_task.metadata.get("artifacts", [])}
+                    graph.mark_completed(node.subtask.id, res_payload)
+                    intermediate_outputs[node.subtask.id] = res_payload
+                else:
+                    revised_graph, can_continue, trigger = planner.replan_on_failure(
+                        graph=graph,
+                        node_id=node.subtask.id,
+                        error_message=sub_task.error or "Step failed",
+                    )
+                    self.audit.log_event("replan_triggered", details={"trigger": trigger.model_dump(), "can_continue": can_continue})
+
+                    if not can_continue:
+                        graph.mark_failed(node.subtask.id, sub_task.error or "Failed without recovery")
+                        return {
+                            "status": "failed",
+                            "failed_node": node.subtask.id,
+                            "error": sub_task.error,
+                            "diagnosis": trigger.diagnosis,
+                            "graph": planner.serializer.serialize_to_dict(goal, graph),
+                        }
+
+        return {
+            "status": "completed",
+            "goal": goal.model_dump(),
+            "strategy": strategy.value,
+            "outputs": intermediate_outputs,
+            "graph": planner.serializer.serialize_to_dict(goal, graph),
+        }
 
     async def _run_task_pipeline(self, task: Task) -> None:
         try:
