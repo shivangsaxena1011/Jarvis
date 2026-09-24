@@ -59,7 +59,35 @@ class ToolRegistry:
                 self.audit.log_event("tool_invalid_args", task_id=task_id, tool_name=name, details={"args": arguments}, success=False, error=err)
                 return ToolResult(success=False, error=err)
 
-        # 2. Permission Check & User Approval
+        # 2. Command Security Validation
+        if "command" in validated_args and isinstance(validated_args["command"], str):
+            from security.sandbox.command_validator import CommandValidator
+            is_blocked, reason = CommandValidator.is_blocked(validated_args["command"])
+            if is_blocked:
+                err = f"Security Sandbox Violation: Blocked dangerous command: {reason}"
+                self.audit.log_event("command_blocked", task_id=task_id, tool_name=name, details={"command": validated_args["command"]}, success=False, error=err)
+                return ToolResult(success=False, error=err)
+
+
+        # 3. Safe Mode & Demo Mode
+        import os
+        if os.getenv("SHIVANI_SAFE_MODE", "0").lower() in ("1", "true", "yes"):
+            from core.modes import SafeModeController
+            safe = SafeModeController(enabled=True)
+            try:
+                safe.validate_tool_execution(name, tool.permission_level)
+            except Exception as se:
+                err = str(se)
+                self.audit.log_event("safe_mode_blocked", task_id=task_id, tool_name=name, success=False, error=err)
+                return ToolResult(success=False, error=err)
+
+        if os.getenv("SHIVANI_DEMO_MODE", "0").lower() in ("1", "true", "yes"):
+            from core.modes import DemoModeController
+            demo = DemoModeController(enabled=True)
+            sim_data = demo.simulate_execution(name, validated_args)
+            return ToolResult(success=True, data=sim_data, verification={"verified": True, "demo": True})
+
+        # 4. Permission Check & User Approval
         authorized = await self.permissions.evaluate_and_request(
             task_id=task_id,
             tool_name=name,
@@ -73,7 +101,10 @@ class ToolRegistry:
             self.audit.log_event("tool_permission_denied", task_id=task_id, tool_name=name, success=False, error=err)
             return ToolResult(success=False, error=err)
 
-        # 3. Execution with Timeout & Retries
+        # 5. Execution with Timeout & Retries
+        from observability.metrics import METRICS
+        METRICS.increment("tool.calls", tags={"tool": name})
+
         timeout_sec = timeout_override or tool.timeout
         attempts = max(1, tool.retry_policy)
         last_error = None
@@ -83,7 +114,7 @@ class ToolRegistry:
             try:
                 raw_data = await asyncio.wait_for(tool.run(**validated_args), timeout=timeout_sec)
                 
-                # 4. Verification Check
+                # Verification Check
                 verification = await tool.verify(raw_data, **validated_args)
                 elapsed_ms = (time.perf_counter() - start_time) * 1000.0
 
@@ -98,6 +129,8 @@ class ToolRegistry:
                     verification=verification,
                     execution_time_ms=elapsed_ms
                 )
+                METRICS.increment("tool.success", tags={"tool": name})
+                METRICS.record_latency(f"tool.{name}", elapsed_ms / 1000.0)
                 self.audit.log_event("tool_executed", task_id=task_id, tool_name=name, details={"args": validated_args, "verification": verification}, success=True)
                 return res
 
@@ -107,5 +140,7 @@ class ToolRegistry:
                 last_error = str(e)
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000.0
+        METRICS.increment("tool.failure", tags={"tool": name})
         self.audit.log_event("tool_failed", task_id=task_id, tool_name=name, details={"args": validated_args}, success=False, error=last_error)
         return ToolResult(success=False, error=last_error, execution_time_ms=elapsed_ms)
+

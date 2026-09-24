@@ -251,6 +251,13 @@ from tools.notifications import (
     NotificationsDismissTool,
 )
 
+# Phase 9: Hardening, Recovery, Idempotency, Limits & Operational Modes
+from recovery.recovery_engine import RecoveryEngine
+from core.idempotency import IdempotencyManager
+from core.limits import ExecutionLimits, DEFAULT_LIMITS
+from core.modes import SafeModeController, DemoModeController
+
+
 
 class Orchestrator:
     def __init__(
@@ -263,6 +270,9 @@ class Orchestrator:
         os_adapter: Optional[OperatingSystemAdapter] = None,
         browser_agent: Optional[BrowserAgent] = None,
         memory_manager: Optional[MemoryManager] = None,
+        recovery_engine: Optional[RecoveryEngine] = None,
+        idempotency_manager: Optional[IdempotencyManager] = None,
+        execution_limits: Optional[ExecutionLimits] = None,
     ):
         self.settings = settings or get_settings()
         self.os_adapter = os_adapter or get_os_adapter()
@@ -335,10 +345,28 @@ class Orchestrator:
         self.planner = TaskPlanner(self.llm, self.tools)
         self.executor = TaskExecutor(self.tools, self.emergency, event_bus=self.events)
 
+        # Phase 9: Hardening, Recovery, Idempotency, Limits & Operational Modes
+        self.recovery = recovery_engine or RecoveryEngine()
+        self.idempotency = idempotency_manager or IdempotencyManager()
+        self.limits = execution_limits or DEFAULT_LIMITS
+        self.safe_mode = SafeModeController()
+        self.demo_mode = DemoModeController()
+
+        # Register Emergency Abort Callbacks
+        self.emergency.register_abort_callback(
+            "browser_shutdown",
+            lambda: asyncio.create_task(self.browser_agent.close()) if hasattr(self.browser_agent, "close") else None
+        )
+        self.emergency.register_abort_callback(
+            "device_disconnect",
+            lambda: self.device_bridge.disconnect() if hasattr(self.device_bridge, "disconnect") else None
+        )
+
         self._tasks: Dict[str, Task] = {}
 
         # Auto-register tools across all phases
         self._register_default_tools()
+
 
     def _register_subagents(self) -> None:
         self.agent_registry.register_agent(

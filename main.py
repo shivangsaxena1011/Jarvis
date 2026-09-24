@@ -70,6 +70,12 @@ async def run_one_shot(query: str):
 
 
 def main():
+    # If first argument is a CLI subcommand, delegate to cli.main
+    cli_commands = {"doctor", "status", "config", "logs", "task", "start", "stop"}
+    if len(sys.argv) > 1 and sys.argv[1] in cli_commands:
+        from cli.main import main as cli_entry
+        sys.exit(cli_entry())
+
     parser = argparse.ArgumentParser(description="SHIVANI Autonomous Personal AI Agent")
     parser.add_argument("--host", default=None, help="Host address to bind")
     parser.add_argument("--port", type=int, default=None, help="Port to listen on")
@@ -101,3 +107,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

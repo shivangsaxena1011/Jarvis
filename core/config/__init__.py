@@ -7,6 +7,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from core.config.app_dirs import AppDirectories, get_app_dirs
 
 
 class Settings(BaseSettings):
@@ -17,11 +18,12 @@ class Settings(BaseSettings):
     HOST: str = "127.0.0.1"
 
     # AI Model Provider
-    LLM_PROVIDER: Literal["gemini", "openai", "local", "mock"] = "mock"
+    LLM_PROVIDER: Literal["gemini", "openai", "local", "mock", "ollama", "fallback", "chain"] = "mock"
     LLM_MODEL: str = "gemini-2.5-flash"
     GEMINI_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
     OPENAI_BASE_URL: str = "https://api.openai.com/v1"
+    OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
 
     # Security & Permissions
     SECURITY_POLICY: Literal["strict", "standard", "lenient"] = "strict"

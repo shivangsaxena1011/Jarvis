@@ -12,31 +12,7 @@ from typing import Dict, Optional, Any, Callable
 from pydantic import BaseModel, Field
 
 
-class RiskLevel(str, Enum):
-    SAFE = "SAFE"
-    SENSITIVE = "SENSITIVE"
-    CRITICAL = "CRITICAL"
-
-
-class ApprovalStatus(str, Enum):
-    PENDING = "PENDING"
-    APPROVED = "APPROVED"
-    REJECTED = "REJECTED"
-    EXPIRED = "EXPIRED"
-
-
-class ApprovalRequest(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    task_id: str
-    tool_name: str
-    arguments: Dict[str, Any]
-    risk_level: RiskLevel
-    description: str
-    target: str = ""
-    status: ApprovalStatus = ApprovalStatus.PENDING
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    resolved_at: Optional[str] = None
-    resolved_by: Optional[str] = None
+from security.permissions.models import RiskLevel, ApprovalStatus, ApprovalRequest
 
 
 class PermissionEngine:
@@ -69,11 +45,12 @@ class PermissionEngine:
         if self.policy in ("test", "none"):
             return False
         if self.policy == "lenient":
-            return risk == RiskLevel.CRITICAL
+            return risk in (RiskLevel.HIGH_RISK, RiskLevel.CRITICAL)
         elif self.policy == "standard":
-            return risk in (RiskLevel.SENSITIVE, RiskLevel.CRITICAL)
+            return risk in (RiskLevel.SENSITIVE, RiskLevel.HIGH_RISK, RiskLevel.CRITICAL)
         # Strict mode (default)
-        return risk in (RiskLevel.SENSITIVE, RiskLevel.CRITICAL)
+        return risk in (RiskLevel.SENSITIVE, RiskLevel.HIGH_RISK, RiskLevel.CRITICAL)
+
 
 
     def request_approval(
