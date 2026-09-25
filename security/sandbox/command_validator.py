@@ -28,6 +28,8 @@ BLOCKED_PATTERNS = [
     r"\brm\s+-rf\s+/(?:\s|$)",
     r"\bshutdown\s+/[sSrR]",
     r"\breg\s+delete\s+HKLM",
+    r"\bmkfs(?:\.[a-zA-Z0-9]+)?\b",
+    r"\bdd\s+if=",
     r":\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:", # bash fork bomb
     r"%0\|%0",                                   # batch fork bomb
 ]

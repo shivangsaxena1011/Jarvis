@@ -7,6 +7,8 @@ from security.permissions.models import (
     Permission,
     PolicyMode,
     ApprovalStatus,
+    ApprovalScope,
+    ScopedPreapproval,
     ApprovalRequest,
 )
 from security.permissions.engine import PermissionEngine
@@ -16,6 +18,8 @@ __all__ = [
     "Permission",
     "PolicyMode",
     "ApprovalStatus",
+    "ApprovalScope",
+    "ScopedPreapproval",
     "ApprovalRequest",
     "PermissionEngine",
 ]

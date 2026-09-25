@@ -23,6 +23,9 @@ class TaskState(str, Enum):
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
+    PAUSED = "PAUSED"
+    BLOCKED = "BLOCKED"
+
 
 
 class TaskEvent(BaseModel):

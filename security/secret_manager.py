@@ -163,6 +163,10 @@ class SecretManager:
                 return True
             return False
 
+    def has_secret_sync(self, key: str) -> bool:
+        with self._lock:
+            return key in self._cache
+
     async def set_secret(self, key: str, value: str) -> bool:
         return self.set_secret_sync(key, value)
 

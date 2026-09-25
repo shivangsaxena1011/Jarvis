@@ -20,6 +20,9 @@ class TaskStatus(str, Enum):
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
+    PAUSED = "PAUSED"
+    BLOCKED = "BLOCKED"
+
 
 
 class TaskPriority(str, Enum):

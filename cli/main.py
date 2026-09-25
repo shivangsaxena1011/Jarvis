@@ -321,6 +321,32 @@ def main(argv: Optional[list] = None) -> int:
     ai_off_p.add_argument("--force", action="store_true", help="Force offline mode")
     ai_off_p.add_argument("--online", action="store_true", help="Restore online mode")
 
+    # Phase 20: data
+    data_parser = subparsers.add_parser("data", help="Data governance, export, wipe, and backup management")
+    data_sub = data_parser.add_subparsers(dest="data_action")
+
+    data_exp_p = data_sub.add_parser("export", help="Export user data to JSON or ZIP")
+    data_exp_p.add_argument("--output", "-o", help="Target output file path")
+    data_exp_p.add_argument("--format", "-f", choices=["json", "zip"], default="json", help="Export format")
+
+    data_del_p = data_sub.add_parser("delete", help="Zero-trace user data deletion")
+    data_del_p.add_argument("--scope", choices=["memory", "cache", "all"], default="all", help="Data wipe scope")
+    data_del_p.add_argument("--yes", "-y", action="store_true", help="Confirm deletion without prompting")
+
+    data_bak_p = data_sub.add_parser("backup", help="Create full system backup archive")
+    data_bak_p.add_argument("--name", help="Custom backup name")
+    data_bak_p.add_argument("--logs", action="store_true", help="Include logs in backup archive")
+
+    data_ver_p = data_sub.add_parser("verify", help="Verify backup archive integrity and checksum")
+    data_ver_p.add_argument("--path", required=True, help="Path to backup zip file")
+
+    data_res_p = data_sub.add_parser("restore", help="Restore system from backup archive")
+    data_res_p.add_argument("--path", required=True, help="Path to backup zip file")
+    data_res_p.add_argument("--target", help="Target extraction directory (default: SHIVANI root)")
+    data_res_p.add_argument("--overwrite", action="store_true", help="Overwrite existing files during restore")
+
+    data_sub.add_parser("list", help="List all available system backups")
+
     args = parser.parse_args(argv)
 
 
@@ -409,6 +435,9 @@ def main(argv: Optional[list] = None) -> int:
     elif args.command == "ai":
         from cli.ai_cli import handle_ai_cli
         return handle_ai_cli(args)
+    elif args.command == "data":
+        from cli.data_cli import handle_data_cli
+        return handle_data_cli(args)
     else:
 
         parser.print_help()

@@ -22,11 +22,11 @@ class PromptInjectionClassifier:
     """Detects indirect prompt injection patterns in external data (web, emails, repositories, PDFs)."""
 
     INJECTION_PATTERNS = [
-        re.compile(r"\b(?:ignore|disregard|forget|override)\s+(?:all\s+)?(?:previous|prior|above)\s+(?:instructions|prompts|rules|commands)\b", re.IGNORECASE),
-        re.compile(r"\b(?:you\s+are\s+now|act\s+as|pretend\s+to\s+be)\s+(?:in\s+)?(?:DAN|jailbroken|unrestricted|an\s+evil|developer\s+(?:mode|override))\b", re.IGNORECASE),
-        re.compile(r"\b(?:new\s+system\s+prompt|system\s+prompt\s+reset|system\s+override|system\s+directive):?\b", re.IGNORECASE),
+        re.compile(r"\b(?:ignore|disregard|forget|override)\s+(?:all\s+)?(?:(?:previous|prior|above)\s+|(?:system\s+)?)(?:instructions|prompts|rules|commands|context|guidelines)\b", re.IGNORECASE),
+        re.compile(r"\b(?:you\s+are\s+now|act\s+as|pretend\s+(?:to\s+be|you\s+are))\s+(?:in\s+|an?\s+)?(?:DAN|jailbroken|unrestricted|evil|developer\s+(?:mode|override))\b", re.IGNORECASE),
+        re.compile(r"\b(?:new\s+system\s+prompt|system\s+prompt\s+reset|system\s+override|system\s+directive|system\s+update):?\b", re.IGNORECASE),
 
-        re.compile(r"(?:<\s*system\s*>|\[\s*SYSTEM\s*\]|---\s*BEGIN\s+SYSTEM\s+PROMPT\s*---)", re.IGNORECASE),
+        re.compile(r"(?:<\s*/?\s*system\s*>|<\s*/?\s*untrusted_[a-zA-Z_]+\s*>|\[\s*/?\s*SYSTEM\s*\]|---\s*BEGIN\s+SYSTEM\s+PROMPT\s*---)", re.IGNORECASE),
         re.compile(r"\b(?:send|exfiltrate|reveal|leak|print|show)\s+(?:the\s+)?(?:password|token|api[_\-]?key|credentials|secret|env)\b", re.IGNORECASE),
         re.compile(r"\b(?:execute\s+command|run\s+shell|powershell\s+-enc|cmd\.exe\s+/c)\b", re.IGNORECASE),
         re.compile(r"\bdo\s+not\s+tell\s+the\s+user\b", re.IGNORECASE),
@@ -34,6 +34,7 @@ class PromptInjectionClassifier:
 
     BOUNDARY_STRIP_PATTERNS = [
         re.compile(r"<\s*/?\s*system\s*>", re.IGNORECASE),
+        re.compile(r"<\s*/?\s*untrusted_[a-zA-Z_]+\s*>", re.IGNORECASE),
         re.compile(r"\[\s*/?\s*SYSTEM\s*\]", re.IGNORECASE),
         re.compile(r"```+\s*system", re.IGNORECASE),
     ]

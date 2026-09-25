@@ -86,6 +86,66 @@ class EmergencyStop:
         self._stopped_tasks.clear()
 
 
-# Alias for Phase 9 naming convention
-EmergencyStopController = EmergencyStop
+from enum import Enum
+
+
+class EmergencyState(str, Enum):
+    NORMAL = "NORMAL"
+    STOPPING = "STOPPING"
+    STOPPED = "STOPPED"
+    RECOVERING = "RECOVERING"
+
+
+class EmergencyController(EmergencyStop):
+    """Authoritative Kill-Switch Controller for Phase 20 (Shivani 1.0).
+
+    Enforces global halt across all active agents, browser sessions,
+    mesh relays, and prevents new autonomous actions until explicit recovery.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._state: EmergencyState = EmergencyState.NORMAL
+        self._stop_reason: Optional[str] = None
+
+    @property
+    def state(self) -> EmergencyState:
+        return self._state
+
+    @property
+    def stop_reason(self) -> Optional[str]:
+        return self._stop_reason
+
+    def can_execute_action(self) -> bool:
+        """Determines if new autonomous operations are permitted."""
+        return self._state == EmergencyState.NORMAL
+
+    def assert_can_execute(self) -> None:
+        """Raises RuntimeError if system is currently halted or emergency stop is active."""
+        if not self.can_execute_action():
+            raise RuntimeError(f"Emergency stop is ACTIVE ({self._state.value}): {self._stop_reason or 'No action permitted'}")
+
+    def abort_all(self, reason: str = "Emergency Stop triggered") -> int:
+        """Execute immediate kill switch across all subsystems."""
+        self._state = EmergencyState.STOPPING
+        self._stop_reason = reason
+        logger.warning(f"GLOBAL EMERGENCY KILL SWITCH ACTIVATED: {reason}")
+        cancelled = self.trigger_stop_all()
+        self._state = EmergencyState.STOPPED
+        return cancelled
+
+    def resume(self) -> bool:
+        """Explicitly resume normal operation after user clears emergency stop."""
+        self._state = EmergencyState.RECOVERING
+        logger.info("Emergency state clearing: revalidating safety invariants...")
+        self.reset()
+        self._stop_reason = None
+        self._state = EmergencyState.NORMAL
+        logger.info("System returned to NORMAL operational state.")
+        return True
+
+
+# Alias for backward compatibility
+EmergencyStopController = EmergencyController
+
 

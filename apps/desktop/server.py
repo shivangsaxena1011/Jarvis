@@ -191,6 +191,54 @@ async def health_check():
     return await orchestrator.health_check()
 
 
+@app.get("/health/live")
+async def health_live():
+    """Liveness probe: verifies server process is alive and responding."""
+    return {
+        "status": "alive",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "pid": os.getpid(),
+    }
+
+
+@app.get("/health/ready")
+async def health_ready():
+    """Readiness probe: verifies all orchestrator subsystems are initialized and ready to serve."""
+    health_data = HEALTH.check_overall_health()
+    is_ready = health_data.get("overall_status") != "CRITICAL"
+    return {
+        "status": "ready" if is_ready else "not_ready",
+        "ready": is_ready,
+        "overall_health": health_data.get("overall_status"),
+        "components": health_data.get("components", {}),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@app.get("/metrics")
+async def get_metrics():
+    """Prometheus-compatible and JSON operational metrics."""
+    perf = PROFILER.get_summary()
+    return {
+        "system": {
+            "pid": perf.get("pid"),
+            "cpu_percent": perf.get("cpu_percent"),
+            "memory_mb": perf.get("memory_mb"),
+            "memory_percent": perf.get("memory_percent"),
+        },
+        "tasks": {
+            "total_registered": len(orchestrator._tasks),
+            "active": sum(1 for t in orchestrator._tasks.values() if t.status.value in ["PLANNING", "EXECUTING", "VERIFYING"]),
+            "completed": sum(1 for t in orchestrator._tasks.values() if t.status.value == "COMPLETED"),
+            "failed": sum(1 for t in orchestrator._tasks.values() if t.status.value == "FAILED"),
+        },
+        "tools": {
+            "count": len(orchestrator.tools.list_tools()),
+        },
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 @app.get("/status")
 @app.get("/api/status")
 async def get_system_status():
