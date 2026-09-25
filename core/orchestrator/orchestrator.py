@@ -320,6 +320,20 @@ from tools.computer.autonomy_tools import (
     ComputerStopTool,
 )
 
+# Phase 18: Cross-Device Continuity & Ambient Intelligence
+from core.devices.orchestrator import DeviceOrchestrator
+from tools.devices.device_tools import (
+    DeviceListTool,
+    DevicePairTool,
+    DeviceTrustTool,
+    DeviceRouteTool,
+    DeviceHandoffTool,
+    DeviceTransferFileTool,
+    DeviceEmergencyStopTool,
+    DeviceAmbientTool,
+    set_device_orchestrator,
+)
+
 
 
 class Orchestrator:
@@ -382,6 +396,11 @@ class Orchestrator:
         )
         self.device_bridge.register_paired_device(default_dev)
         self.phone_agent = PhoneAgent(bridge=self.device_bridge)
+
+        # Phase 18: Cross-Device Mesh & Ambient Intelligence Orchestrator
+        self.device_orchestrator = DeviceOrchestrator(device_bridge=self.device_bridge)
+        set_device_orchestrator(self.device_orchestrator)
+        self.device_orchestrator.register_emergency_callback(lambda reason: self.emergency.abort_all(reason))
 
         # Phase 8: Memory, Concurrency, Notifications, Scheduler & Agent Registry
         self.memory = memory_manager or MemoryManager(db_path=getattr(self.settings, "MEMORY_DB_PATH", "data/memory.db"))
@@ -761,6 +780,15 @@ class Orchestrator:
             ComputerObserveTool(),
             ComputerActTool(),
             ComputerStopTool(),
+            # Phase 18: Cross-Device Continuity & Ambient Intelligence tools
+            DeviceListTool(),
+            DevicePairTool(),
+            DeviceTrustTool(),
+            DeviceRouteTool(),
+            DeviceHandoffTool(),
+            DeviceTransferFileTool(),
+            DeviceEmergencyStopTool(),
+            DeviceAmbientTool(),
         ]
         for t in default_tools:
             self.tools.register(t)

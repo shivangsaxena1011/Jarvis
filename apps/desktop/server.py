@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import asyncio
+import time
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request, Query
 from fastapi.staticfiles import StaticFiles
@@ -1364,6 +1365,246 @@ async def computer_tasks_cancel_endpoint(task_id: str):
     if task_id in _active_computer_tasks:
         _active_computer_tasks[task_id]["status"] = "CANCELLED"
     return {"task_id": task_id, "status": "CANCELLED"}
+
+
+# ==============================================================================
+# PHASE 18: CROSS-DEVICE CONTINUITY, MESH ORCHESTRATION & AMBIENT INTELLIGENCE
+# ==============================================================================
+
+class DevicePairRequest(BaseModel):
+    display_name: str
+    platform: str = "android"
+    device_id: Optional[str] = None
+    public_key: Optional[str] = None
+
+class DevicePairConfirmRequest(BaseModel):
+    session_id: str
+    code: str
+    capabilities: Optional[List[str]] = None
+
+class DeviceTrustUpdateRequest(BaseModel):
+    action: str  # revoke, block, unblock, update_permissions
+    permissions: Optional[List[str]] = None
+
+class DeviceRouteRequest(BaseModel):
+    task_description: str
+    required_capabilities: Optional[List[str]] = None
+    preferred_platform: Optional[str] = None
+
+class DeviceHandoffRequest(BaseModel):
+    task_id: str
+    title: str
+    target_device_id: str
+    source_device_id: Optional[str] = None
+    handoff_type: str = "continue"
+    context_payload: Optional[Dict[str, Any]] = None
+
+class DeviceTransferRequest(BaseModel):
+    target_device_id: str
+    file_path: str
+    source_device_id: Optional[str] = None
+    custom_filename: Optional[str] = None
+
+class DeviceAmbientUpdateRequest(BaseModel):
+    mode: str
+
+class DeviceEmergencyRequest(BaseModel):
+    reason: Optional[str] = "User initiated global emergency stop"
+
+
+@app.get("/api/devices/mesh")
+async def devices_list_endpoint(trust_state: Optional[str] = None):
+    """List all mesh devices filtered optionally by trust_state."""
+    filter_state = None
+    if trust_state:
+        from core.devices.models import DeviceTrustState
+        try:
+            filter_state = DeviceTrustState(trust_state.lower())
+        except ValueError:
+            pass
+    devices = orchestrator.device_orchestrator.list_devices(trust_state=filter_state)
+    return {"devices": [d.to_dict() for d in devices], "total": len(devices)}
+
+
+@app.post("/api/devices/pair")
+async def devices_pair_initiate_endpoint(req: DevicePairRequest):
+    """Initiate a 6-digit confirmation code pairing session."""
+    dev_id = req.device_id or f"dev-{req.platform}-{int(time.time()) % 10000}"
+    try:
+        session_id, code, sas_phrase = orchestrator.device_orchestrator.pair_device(
+            device_id=dev_id,
+            display_name=req.display_name,
+            platform=req.platform,
+            public_key=req.public_key,
+        )
+        return {
+            "session_id": session_id,
+            "code": code,
+            "sas_phrase": sas_phrase,
+            "device_id": dev_id,
+            "status": "PAIRING_INITIATED",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/devices/pair/confirm")
+async def devices_pair_confirm_endpoint(req: DevicePairConfirmRequest):
+    """Confirm pairing code and issue trust token."""
+    try:
+        device = orchestrator.device_orchestrator.confirm_pairing(
+            session_id=req.session_id,
+            code=req.code,
+            capabilities=req.capabilities,
+        )
+        return {"device": device.to_dict(), "status": "PAIRING_CONFIRMED"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/devices/{device_id}")
+async def devices_get_endpoint(device_id: str):
+    dev = orchestrator.device_orchestrator.get_device(device_id)
+    if not dev:
+        raise HTTPException(status_code=404, detail="Device not found")
+    return {"device": dev.to_dict()}
+
+
+@app.post("/api/devices/{device_id}/trust")
+async def devices_update_trust_endpoint(device_id: str, req: DeviceTrustUpdateRequest):
+    act = req.action.lower()
+    if act == "revoke":
+        res = orchestrator.device_orchestrator.revoke_device(device_id)
+        return {"device_id": device_id, "action": act, "success": res}
+    elif act == "block":
+        res = orchestrator.device_orchestrator.block_device(device_id)
+        return {"device_id": device_id, "action": act, "success": res}
+    elif act == "unblock":
+        res = orchestrator.device_orchestrator.pairing.unblock_device(device_id)
+        return {"device_id": device_id, "action": act, "success": res}
+    elif act == "update_permissions":
+        if not req.permissions:
+            raise HTTPException(status_code=400, detail="Missing permissions list")
+        res = orchestrator.device_orchestrator.update_permissions(device_id, req.permissions)
+        return {"device_id": device_id, "action": act, "permissions": req.permissions, "success": res}
+    else:
+        raise HTTPException(status_code=400, detail=f"Unsupported trust action '{req.action}'")
+
+
+@app.post("/api/devices/route")
+async def devices_route_task_endpoint(req: DeviceRouteRequest):
+    """Evaluate capabilities and select optimal target device for task."""
+    try:
+        decision = orchestrator.device_orchestrator.route_task(
+            task_description=req.task_description,
+            required_capabilities=req.required_capabilities,
+            preferred_platform=req.preferred_platform,
+        )
+        return {
+            "selected_device_id": decision.selected_device_id,
+            "target_platform": decision.target_platform,
+            "confidence_score": decision.confidence_score,
+            "reason": decision.reason,
+            "ranked_candidates": decision.ranked_candidates,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/devices/handoff")
+async def devices_create_handoff_endpoint(req: DeviceHandoffRequest):
+    """Create task handoff package to target device."""
+    from core.devices.models import HandoffType
+    try:
+        htype = HandoffType(req.handoff_type.lower())
+        src_id = req.source_device_id or orchestrator.device_orchestrator.primary_device_id
+        hdf = orchestrator.device_orchestrator.initiate_handoff(
+            task_id=req.task_id,
+            title=req.title,
+            source_device_id=src_id,
+            target_device_id=req.target_device_id,
+            handoff_type=htype,
+            context_payload=req.context_payload,
+        )
+        return {"handoff": hdf.to_dict()}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/devices/handoffs")
+async def devices_list_handoffs_endpoint(target_device_id: Optional[str] = None):
+    handoffs = orchestrator.device_orchestrator.trust_store.list_handoffs(target_device_id=target_device_id)
+    return {"handoffs": [h.to_dict() for h in handoffs], "total": len(handoffs)}
+
+
+@app.post("/api/devices/handoffs/{handoff_id}/accept")
+async def devices_accept_handoff_endpoint(handoff_id: str, device_id: str = Query(...)):
+    try:
+        hdf = orchestrator.device_orchestrator.accept_handoff(handoff_id, device_id)
+        return {"handoff": hdf.to_dict()}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/devices/handoffs/{handoff_id}/complete")
+async def devices_complete_handoff_endpoint(handoff_id: str, result_payload: Optional[Dict[str, Any]] = None):
+    try:
+        hdf = orchestrator.device_orchestrator.complete_handoff(handoff_id, result_payload)
+        return {"handoff": hdf.to_dict()}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/devices/transfer")
+async def devices_initiate_transfer_endpoint(req: DeviceTransferRequest):
+    """Initiate authenticated chunked file transfer."""
+    try:
+        src_id = req.source_device_id or orchestrator.device_orchestrator.primary_device_id
+        session = orchestrator.device_orchestrator.transfer_file(
+            source_device_id=src_id,
+            target_device_id=req.target_device_id,
+            file_path=req.file_path,
+            custom_filename=req.custom_filename,
+        )
+        return {"transfer": session.to_dict()}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/devices/transfer/{session_id}")
+async def devices_get_transfer_status_endpoint(session_id: str):
+    sess = orchestrator.device_orchestrator.trust_store.get_file_transfer(session_id)
+    if not sess:
+        raise HTTPException(status_code=404, detail="Transfer session not found")
+    return {"transfer": sess.to_dict()}
+
+
+@app.get("/api/devices/ambient/state")
+async def devices_get_ambient_endpoint():
+    current = orchestrator.device_orchestrator.ambient.get_ambient_state()
+    audit = orchestrator.device_orchestrator.ambient.get_audit_trail(limit=10)
+    return {
+        "ambient_state": current.value,
+        "zero_surveillance_enforced": True,
+        "recent_audit": audit,
+    }
+
+
+@app.post("/api/devices/ambient/state")
+async def devices_set_ambient_endpoint(req: DeviceAmbientUpdateRequest):
+    try:
+        orchestrator.device_orchestrator.ambient.set_ambient_state(req.mode.lower())
+        current = orchestrator.device_orchestrator.ambient.get_ambient_state()
+        return {"ambient_state": current.value, "success": True}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/devices/emergency_stop")
+async def devices_emergency_stop_endpoint(req: DeviceEmergencyRequest):
+    """Broadcast global emergency stop across all mesh nodes."""
+    res = orchestrator.device_orchestrator.emergency_stop_all(reason=req.reason or "Global emergency stop")
+    return res
 
 
 # ==============================================================================

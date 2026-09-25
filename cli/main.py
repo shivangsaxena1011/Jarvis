@@ -276,6 +276,27 @@ def main(argv: Optional[list] = None) -> int:
     comp_sub.add_parser("test", help="Execute synthetic closed-loop GUI test")
     comp_sub.add_parser("stop", help="Trigger emergency stop")
 
+    # Phase 18: device
+    dev_parser = subparsers.add_parser("device", help="Cross-device mesh and ambient operations")
+    dev_sub = dev_parser.add_subparsers(dest="device_action")
+    dev_list_p = dev_sub.add_parser("list", help="List all mesh devices")
+    dev_list_p.add_argument("--state", help="Filter by trust state (e.g. trusted, discovered)")
+    dev_pair_p = dev_sub.add_parser("pair", help="Initiate or confirm pairing")
+    dev_pair_p.add_argument("--name", default="Shivani Companion", help="Device display name")
+    dev_pair_p.add_argument("--platform", default="android", help="Platform: android, windows, tablet")
+    dev_pair_p.add_argument("--confirm", action="store_true", help="Confirm pairing code")
+    dev_pair_p.add_argument("--session-id", dest="session_id", help="Pairing session ID")
+    dev_pair_p.add_argument("--code", help="6-digit pairing code")
+    dev_rev_p = dev_sub.add_parser("revoke", help="Revoke device trust")
+    dev_rev_p.add_argument("device_id", help="Target device ID to revoke")
+    dev_hdf_p = dev_sub.add_parser("handoff", help="Initiate task handoff")
+    dev_hdf_p.add_argument("task_id", help="Task ID")
+    dev_hdf_p.add_argument("--target", required=True, help="Target device ID")
+    dev_tx_p = dev_sub.add_parser("transfer", help="Transfer file across devices")
+    dev_tx_p.add_argument("file", help="Local file path")
+    dev_tx_p.add_argument("--target", required=True, help="Target device ID")
+    dev_sub.add_parser("stop", help="Global emergency stop all devices")
+
     args = parser.parse_args(argv)
 
     if args.command == "doctor":
@@ -357,6 +378,9 @@ def main(argv: Optional[list] = None) -> int:
         elif action == "stop":
             run_computer_stop()
         return 0
+    elif args.command == "device":
+        from cli.device_cli import handle_device_cli
+        return handle_device_cli(args)
     else:
         parser.print_help()
         return 0

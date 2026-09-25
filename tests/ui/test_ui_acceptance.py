@@ -20,6 +20,19 @@ def anyio_backend():
 # TEST 1: "Shivani, open Chrome."
 @pytest.mark.asyncio
 async def test_acceptance_scenario_1_open_chrome():
+    from tools.desktop.os.mock import MockOSAdapter
+    from tools.desktop import ApplicationManager, WindowManager
+    if not isinstance(orchestrator.os_adapter, MockOSAdapter):
+        mock_os = MockOSAdapter()
+        orchestrator.os_adapter = mock_os
+        orchestrator.computer_agent.adapter = mock_os
+        open_tool = orchestrator.tools.get_tool("computer.open_app")
+        if open_tool:
+            open_tool.app_manager = ApplicationManager(mock_os)
+        win_tool = orchestrator.tools.get_tool("computer.active_window")
+        if win_tool:
+            win_tool.window_manager = WindowManager(mock_os)
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Submit voice/text command
