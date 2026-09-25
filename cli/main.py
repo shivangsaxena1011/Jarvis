@@ -297,7 +297,32 @@ def main(argv: Optional[list] = None) -> int:
     dev_tx_p.add_argument("--target", required=True, help="Target device ID")
     dev_sub.add_parser("stop", help="Global emergency stop all devices")
 
+    # Phase 19: ai
+    ai_parser = subparsers.add_parser("ai", help="Local AI, model routing, benchmarking & offline autonomy")
+    ai_sub = ai_parser.add_subparsers(dest="ai_action")
+    ai_sub.add_parser("status", help="View AI subsystem status and metrics")
+
+    ai_models_p = ai_sub.add_parser("models", help="List cataloged models")
+    ai_models_p.add_argument("--provider", help="Filter by provider: local, cloud, specialized, deterministic")
+    ai_models_p.add_argument("--capability", help="Filter by capability")
+
+    ai_route_p = ai_sub.add_parser("route", help="Evaluate model routing for a prompt")
+    ai_route_p.add_argument("query", help="Prompt or task query to route")
+    ai_route_p.add_argument("--privacy", choices=["public", "low_sensitivity", "private", "sensitive", "critical"], help="Privacy tier")
+    ai_route_p.add_argument("--local", action="store_true", help="Force local model preference")
+    ai_route_p.add_argument("--strategy", help="Routing strategy: auto, local_first, cloud_first, speed_first, cost_aware, privacy_first")
+
+    ai_bench_p = ai_sub.add_parser("benchmark", help="Run benchmark on model")
+    ai_bench_p.add_argument("--model", default="llama3.1:8b", help="Model ID to benchmark")
+
+    ai_sub.add_parser("doctor", help="Run AI Doctor diagnostics")
+
+    ai_off_p = ai_sub.add_parser("offline", help="Inspect or toggle offline mode")
+    ai_off_p.add_argument("--force", action="store_true", help="Force offline mode")
+    ai_off_p.add_argument("--online", action="store_true", help="Restore online mode")
+
     args = parser.parse_args(argv)
+
 
     if args.command == "doctor":
         return run_doctor_cmd(full=args.full)
@@ -381,7 +406,11 @@ def main(argv: Optional[list] = None) -> int:
     elif args.command == "device":
         from cli.device_cli import handle_device_cli
         return handle_device_cli(args)
+    elif args.command == "ai":
+        from cli.ai_cli import handle_ai_cli
+        return handle_ai_cli(args)
     else:
+
         parser.print_help()
         return 0
 

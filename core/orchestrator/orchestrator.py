@@ -334,6 +334,26 @@ from tools.devices.device_tools import (
     set_device_orchestrator,
 )
 
+# Phase 19: Local AI, Model Routing, Performance Engineering & Offline Autonomy
+from core.ai import (
+    ModelRegistry,
+    ModelRouter,
+    OfflineManager,
+    ModelResourceManager,
+)
+from tools.ai import (
+    AIStatusTool,
+    AIRouteTool,
+    AIBenchmarkTool,
+    AIDoctorTool,
+    AIOfflineTool,
+    AIModelsTool,
+    get_ai_router,
+    get_ai_offline,
+    get_ai_resources,
+)
+
+
 
 
 class Orchestrator:
@@ -470,10 +490,16 @@ class Orchestrator:
             lambda: self.device_bridge.disconnect() if hasattr(self.device_bridge, "disconnect") else None
         )
 
+        # Phase 19: Local AI, Model Routing, Resource Management & Offline Autonomy
+        self.ai_offline = get_ai_offline()
+        self.ai_resources = get_ai_resources()
+        self.ai_router = get_ai_router()
+
         self._tasks: Dict[str, Task] = {}
 
         # Auto-register tools across all phases
         self._register_default_tools()
+
 
 
     def _register_subagents(self) -> None:
@@ -789,6 +815,13 @@ class Orchestrator:
             DeviceTransferFileTool(),
             DeviceEmergencyStopTool(),
             DeviceAmbientTool(),
+            # Phase 19: Local AI & Model Routing tools
+            AIStatusTool(),
+            AIRouteTool(),
+            AIBenchmarkTool(),
+            AIDoctorTool(),
+            AIOfflineTool(),
+            AIModelsTool(),
         ]
         for t in default_tools:
             self.tools.register(t)

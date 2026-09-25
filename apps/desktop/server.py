@@ -31,6 +31,10 @@ from observability.performance import PROFILER
 from notifications.center import NotificationCategory, NotificationItem
 from security.permissions.models import RiskLevel
 from core.productivity.models import TaskPriority, TaskStatus
+from core.ai.models import PrivacyLevel, ProviderType, RoutingStrategy
+from core.ai.hardware import HardwareProfiler
+from tools.ai.ai_tools import get_ai_runtime, get_ai_doctor, get_ai_benchmark
+
 
 settings = get_settings()
 orchestrator = Orchestrator(settings=settings)
@@ -1605,6 +1609,126 @@ async def devices_emergency_stop_endpoint(req: DeviceEmergencyRequest):
     """Broadcast global emergency stop across all mesh nodes."""
     res = orchestrator.device_orchestrator.emergency_stop_all(reason=req.reason or "Global emergency stop")
     return res
+
+
+# ==============================================================================
+# LOCAL AI, MODEL ROUTING & OFFLINE AUTONOMY APIS (PHASE 19)
+
+# ==============================================================================
+
+class AIRouteRequest(BaseModel):
+    query: str
+    privacy_level: Optional[str] = None
+    prefer_local: Optional[bool] = None
+    strategy: Optional[str] = None
+
+
+class AIBenchmarkRequest(BaseModel):
+    model_id: Optional[str] = "llama3.1:8b"
+
+
+class AIOfflineRequest(BaseModel):
+    force_offline: bool
+
+
+@app.get("/api/ai/status")
+async def ai_status_endpoint():
+    """Retrieve live status of AI subsystems, hardware profiling, and metrics."""
+    router = orchestrator.ai_router
+    offline = orchestrator.ai_offline
+    profiler = HardwareProfiler()
+    hw = profiler.detect()
+    rt = get_ai_runtime()
+
+    return {
+        "routing_strategy": router.strategy.value,
+        "is_online": offline.is_online(),
+        "hardware": hw.to_dict(),
+        "local_runtime_available": rt.is_runtime_available(),
+        "installed_local_models": [m.get("name") for m in rt.list_installed_models()],
+        "metrics": router.metrics.to_dict(),
+    }
+
+
+@app.get("/api/ai/models")
+async def ai_models_endpoint(provider: Optional[str] = None, capability: Optional[str] = None):
+    """List cataloged models filtered by provider or capability."""
+    reg = orchestrator.ai_router.registry
+    models = reg.list_models()
+    if provider:
+        p_enum = ProviderType(provider.lower())
+        models = [m for m in models if m.provider_type == p_enum]
+    if capability:
+        models = [m for m in models if capability.lower() in [c.value for c in m.capabilities]]
+    return {"models": [m.to_dict() for m in models], "total": len(models)}
+
+
+@app.post("/api/ai/route")
+async def ai_route_endpoint(req: AIRouteRequest):
+    """Evaluate optimal routing decision for a query or task."""
+    try:
+        router = orchestrator.ai_router
+        p_level = PrivacyLevel(req.privacy_level.lower()) if req.privacy_level else None
+        strat = RoutingStrategy(req.strategy.lower()) if req.strategy else None
+        decision = router.route(
+            prompt=req.query,
+            explicit_privacy=p_level,
+            strategy_override=strat,
+            prefer_local=req.prefer_local,
+        )
+        return {"decision": decision.to_dict()}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/ai/doctor")
+async def ai_doctor_endpoint():
+    """Run comprehensive AI Doctor diagnostics across hardware, local models, and offline readiness."""
+    doc = get_ai_doctor()
+    diagnostics = doc.run_diagnostics()
+    report = doc.format_report(diagnostics)
+    return {"diagnostics": diagnostics, "report": report}
+
+
+@app.post("/api/ai/benchmark")
+async def ai_benchmark_endpoint(req: AIBenchmarkRequest):
+    """Run empirical benchmark on target local model."""
+    try:
+        bench = get_ai_benchmark()
+        result = await bench.run_benchmark(model_id=req.model_id or "llama3.1:8b")
+        return {"benchmark": result.to_dict()}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/ai/usage")
+async def ai_usage_endpoint():
+    """Live aggregation of token usage, requests, estimated cost, and latency."""
+    return {"usage": orchestrator.ai_router.metrics.to_dict()}
+
+
+@app.get("/api/ai/offline")
+async def ai_offline_status_endpoint():
+    """Query network reachability and offline capability degraded status."""
+    offline = orchestrator.ai_offline
+    return {
+        "is_online": offline.is_online(),
+        "forced_offline": offline.is_forced_offline(),
+        "available_capabilities": offline.get_available_capabilities(),
+    }
+
+
+@app.post("/api/ai/offline")
+async def ai_offline_set_endpoint(req: AIOfflineRequest):
+    """Toggle offline mode simulation."""
+    offline = orchestrator.ai_offline
+    offline.set_forced_offline(req.force_offline)
+    return {
+        "is_online": offline.is_online(),
+        "forced_offline": offline.is_forced_offline(),
+        "available_capabilities": offline.get_available_capabilities(),
+    }
+
 
 
 # ==============================================================================
