@@ -664,7 +664,7 @@ async def forget_memory(req: ForgetMemoryRequest):
 @app.get("/api/artifacts")
 async def list_artifacts(limit: int = 30):
     artifacts = orchestrator.artifact_manager.list_artifacts(limit=limit)
-    return [a.model_dump() for a in artifacts]
+    return [a.model_dump() if hasattr(a, "model_dump") else a for a in artifacts]
 
 
 @app.get("/api/artifacts/{artifact_id}")

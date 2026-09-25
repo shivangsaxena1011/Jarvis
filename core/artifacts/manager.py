@@ -81,7 +81,7 @@ class ArtifactManager:
                 return None
         return target_path.read_text(encoding="utf-8")
 
-    def list_artifacts(self, category: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_artifacts(self, category: Optional[str] = None, limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Lists metadata for all stored artifacts."""
         results = []
         categories = [category] if category else self.CATEGORIES
@@ -100,6 +100,8 @@ class ArtifactManager:
                         "size_bytes": stat.st_size,
                         "modified_at": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat()
                     })
+        if limit is not None:
+            return results[:limit]
         return results
 
     def save_checkpoint(self, checkpoint_id: str, stage: str, data: Dict[str, Any]) -> Path:

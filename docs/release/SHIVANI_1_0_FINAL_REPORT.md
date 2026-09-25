@@ -24,9 +24,11 @@ Across 20 rigorous engineering phases, SHIVANI has been forged from an initial c
 18. **Cross-Device Continuity**: Mesh protocol, 6-digit cryptographic pairing, task handoff, and file synchronization.
 19. **Local AI & Performance Engineering**: Hybrid model routing, Ollama inference, offline mode, and benchmarking.
 20. **Final Integration & Hardening (Shivani 1.0)**: Master architecture map, TaskWatchdog, EmergencyController kill-switch, scoped approvals, data backup/export/wipe, red-team matrix, and production packaging.
+21. **Phase 20.5 — Real-World Acceptance & Release Certification**: Physical hardware probing on Windows 11 host, 46-point real-world verification matrix, 23 real-machine acceptance tests, DLL bootstrap & SQLite rowcount fixes, User Guide, and 13-step demonstration script.
 
 ## 3. Final Verification
-- **Total Test Count**: 496 passing tests across unit, integration, and red-team suites.
+- **Total Test Count**: 519 passing tests across unit, integration, adversarial, and real-world acceptance suites (`pytest tests/`).
 - **Failures / Regressions**: 0.
 - **Security Posture**: Fail-closed, zero plaintext secret exposure, hardened prompt and tool sandboxes.
-- **Software Version**: 1.0.0.
+- **Software Version**: 1.0.0 (`v1.0.0-certified`).
+- **Release Classification**: **CONDITIONAL RELEASE** (Production ready for Windows desktop, browser, coding, voice & memory autonomy; transparent disclosure of absent physical Android device and local Ollama daemon on host).

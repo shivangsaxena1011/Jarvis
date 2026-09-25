@@ -8,6 +8,16 @@ The project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [1.0.0] - 2026-09-25
 
+### Phase 20.5: Real-World Acceptance, Hardware Validation & Release Certification
+- **Hardware Probing & Discovery**: Real-world hardware detection across Windows 11 host (12 cores, 16GB RAM, Intel SST Microphones, Realtek Audio, Chrome, Edge).
+- **Windows 11 DLL Bootstrap**: Fixed `pywinauto` import issues outside virtualenv via `os.add_dll_directory` in `core/__init__.py`.
+- **ArtifactManager Signature Fix**: Added pagination support (`limit`) to `ArtifactManager.list_artifacts` and updated `/api/artifacts` route.
+- **Headless Shell Window Listing**: Implemented automatic fallback to process enumeration in `tools/computer/system_tools.py` when `pygetwindow` returns empty lists in non-interactive sessions.
+- **Automation Cascade Rowcount Fix**: Corrected SQLite rowcount tracking on cascading deletes in `core/automation/store.py`.
+- **46-Point Real-World Verification Matrix**: Validated all 46 real-world capabilities on physical host; certified 23 dedicated acceptance tests.
+- **Regression Test Milestone**: Full automated suite reached **519 passed, 0 failed, 18 warnings** (100% pass rate).
+- **Release Verdict**: Designated official status as **CONDITIONAL RELEASE** (with transparent absent hardware disclosure for Android ADB and Ollama daemon).
+
 ### Phase 20: Final Integration, Hardening, Red-Team Matrix & Production Release (Shivani 1.0)
 - **Master Architecture & System Map**: Formally unified all 20 subsystems into the authoritative `SHIVANI_MASTER_ARCHITECTURE.md`.
 - **Extended Task Lifecycle**: Integrated `PAUSED` and `BLOCKED` states across the core orchestrator state machine and task manager.

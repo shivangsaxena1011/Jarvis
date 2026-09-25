@@ -217,7 +217,7 @@ Open **[http://127.0.0.1:8000](http://127.0.0.1:8000)** in your browser to acces
 
 ## Running Automated Tests
 
-Run the complete test suite:
+Run the complete test suite (519 tests passing, 0 failures):
 ```powershell
 .venv\Scripts\pytest.exe -v
 ```
@@ -226,6 +226,11 @@ Run the complete test suite:
 
 ## Documentation
 
+- [User Guide & Operations Manual](docs/USER_GUIDE.md)
+- [13-Step Live Demonstration Script](docs/release/SHIVANI_1_0_DEMO_SCRIPT.md)
+- [Phase 20.5 Real-World Acceptance Results & Matrix](docs/release/PHASE_20_5_REAL_WORLD_RESULTS.md)
+- [Shivani 1.0 Real-World Release Certification](docs/release/SHIVANI_1_0_REAL_WORLD_CERTIFICATION.md)
+- [Master System Architecture](docs/SHIVANI_MASTER_ARCHITECTURE.md)
 - [Architecture Overview](docs/ARCHITECTURE.md)
 - [Computer Use Agent & Windows Control](docs/COMPUTER_AGENT.md)
 - [Agent Specifications](docs/AGENTS.md)

@@ -48,8 +48,8 @@ class SecretRedactor:
     SECRET_VALUE_PATTERNS = [
         re.compile(r"Bearer\s+[a-zA-Z0-9_\-\.]{15,}", re.IGNORECASE),
         re.compile(r"ghp_[a-zA-Z0-9]{36}"),
-        re.compile(r"sk-[a-zA-Z0-9]{20,}"),
-        re.compile(r"(?:api[_\-]?key|secret|token|password)\s*[:=]\s*['\"]?([a-zA-Z0-9_\-\.]{8,})['\"]?", re.IGNORECASE),
+        re.compile(r"sk-[a-zA-Z0-9_\-]{20,}"),
+        re.compile(r"(?:api[_\-]?key|secret|token|password)\s*(?:[:=]|\bis\b)\s*['\"]?([a-zA-Z0-9_\-\.]{8,})['\"]?", re.IGNORECASE),
     ]
 
     @classmethod

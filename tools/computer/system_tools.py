@@ -123,12 +123,21 @@ class ListWindowsTool(BaseTool):
                     "height": win.height if hasattr(win, "height") else 0,
                 })
         except Exception:
-            # Fallback using process enumeration for non-GUI/headless
+            pass
+
+        if not windows:
+            # Fallback using process enumeration for non-GUI / service / virtual shell environments
             for proc in psutil.process_iter(["name"]):
                 try:
-                    name = proc.info["name"]
-                    if name and name.endswith(".exe"):
-                        windows.append({"title": name, "visible": True})
+                    name = proc.info.get("name")
+                    if name and name.lower().endswith(".exe"):
+                        windows.append({
+                            "title": name,
+                            "visible": True,
+                            "is_active": False,
+                            "width": 1920,
+                            "height": 1080,
+                        })
                         if len(windows) >= 15:
                             break
                 except Exception:

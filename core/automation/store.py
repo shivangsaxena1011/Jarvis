@@ -178,10 +178,11 @@ class AutomationStore:
             try:
                 cursor = conn.cursor()
                 cursor.execute("DELETE FROM automations WHERE id = ?", (automation_id,))
+                deleted = cursor.rowcount > 0
                 cursor.execute("DELETE FROM automation_versions WHERE automation_id = ?", (automation_id,))
                 cursor.execute("DELETE FROM automation_runs WHERE automation_id = ?", (automation_id,))
                 conn.commit()
-                return cursor.rowcount > 0
+                return deleted
             finally:
                 conn.close()
 
