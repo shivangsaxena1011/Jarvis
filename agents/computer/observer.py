@@ -7,7 +7,7 @@ structured DesktopObservation objects.
 
 from typing import Any, Dict, Optional
 from agents.computer.observation import DesktopObservation, ScreenGeometry, DesktopElement
-from agents.computer.vision import VisionProvider, MockVisionProvider
+from agents.computer.vision import VisionProvider, Phase10VisionProvider
 from tools.desktop.screen import ScreenCapture
 from tools.desktop.window import WindowManager
 
@@ -23,7 +23,7 @@ class ScreenObserver:
     ):
         self.screen_capture = screen_capture or ScreenCapture()
         self.window_manager = window_manager or WindowManager()
-        self.vision = vision_provider or MockVisionProvider()
+        self.vision = vision_provider or Phase10VisionProvider()
 
     async def observe(self, capture_image: bool = True) -> DesktopObservation:
         """

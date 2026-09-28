@@ -58,12 +58,7 @@ class GmailService(BaseIntegration):
             pass
 
         if not items:
-            items = [
-                {"id": "msg_1", "sender": "Security Alert <no-reply@accounts.google.com>", "subject": "New sign-in from Windows Desktop", "snippet": "Your account was accessed from a new device...", "is_unread": True},
-                {"id": "msg_2", "sender": "Prof. Sharma <sharma@university.edu>", "subject": "Project Review Meeting Tomorrow", "snippet": "Please bring your documentation and status report...", "is_unread": True},
-                {"id": "msg_3", "sender": "TechFlash Newsletter <news@techflash.io>", "subject": "Top 10 AI Frameworks This Week", "snippet": "Discover the latest weekly AI agent architectures...", "is_unread": True},
-                {"id": "msg_4", "sender": "SuperShop Deals <deals@supershop.xyz>", "subject": "Mega Sale: Up to 80% discount today!", "snippet": "Don't miss our exclusive discounts...", "is_unread": True},
-            ]
+            items = []
 
         unread = [m for m in items if m.get("is_unread", True)]
         return (unread or items)[:limit]
@@ -140,10 +135,13 @@ class GmailService(BaseIntegration):
         counts = {cat: len(items) for cat, items in categorized.items()}
         total = sum(counts.values())
 
-        summary_lines = [f"### Executive Email Briefing\nFound {total} unread emails:"]
-        for cat, count in counts.items():
-            if count > 0:
-                summary_lines.append(f"- {cat.replace('_', ' ').capitalize()}: {count}")
+        if total == 0:
+            summary_lines = ["### Executive Email Briefing\nNo unread emails found."]
+        else:
+            summary_lines = [f"### Executive Email Briefing\nFound {total} unread emails:"]
+            for cat, count in counts.items():
+                if count > 0:
+                    summary_lines.append(f"- {cat.replace('_', ' ').capitalize()}: {count}")
 
         return {
             "status": "success",
@@ -167,6 +165,11 @@ class GmailService(BaseIntegration):
         preserved = categorized["important"] + categorized["work_college"] + categorized["personal"]
 
         proposal_id = f"clean_{uuid.uuid4().hex[:6]}"
+        if not eligible_for_archive and not spam:
+            proposal_summary = "Inbox is clean. No promotional or spam candidates found to archive."
+        else:
+            proposal_summary = f"I found {len(eligible_for_archive)} promotional/newsletter emails and {len(spam)} suspicious emails. {len(preserved)} important and personal emails will be preserved. Proceed with archive?"
+
         proposal = {
             "status": "proposal_ready",
             "proposal_id": proposal_id,
@@ -177,7 +180,7 @@ class GmailService(BaseIntegration):
             "archive_candidates": [m["subject"] for m in eligible_for_archive[:10]],
             "spam_candidates_count": len(spam),
             "preserved_count": len(preserved),
-            "proposal_summary": f"I found {len(eligible_for_archive)} promotional/newsletter emails and {len(spam)} suspicious emails. {len(preserved)} important and personal emails will be preserved. Proceed with archive?"
+            "proposal_summary": proposal_summary
         }
         self._proposals[proposal_id] = {
             "proposal": proposal,

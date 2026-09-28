@@ -15,11 +15,21 @@ from tools.integrations.gmail_tools import (
 )
 
 
+@pytest.fixture
+def sample_test_emails():
+    return [
+        {"id": "msg_1", "sender": "Security Alert <no-reply@accounts.google.com>", "subject": "New sign-in from Windows Desktop", "snippet": "Your account was accessed from a new device...", "is_unread": True},
+        {"id": "msg_2", "sender": "Prof. Sharma <sharma@university.edu>", "subject": "Project Review Meeting Tomorrow", "snippet": "Please bring your documentation and status report...", "is_unread": True},
+        {"id": "msg_3", "sender": "TechFlash Newsletter <news@techflash.io>", "subject": "Top 10 AI Frameworks This Week", "snippet": "Discover the latest weekly AI agent architectures...", "is_unread": True},
+        {"id": "msg_4", "sender": "SuperShop Deals <deals@supershop.xyz>", "subject": "Mega Sale: Up to 80% discount today!", "snippet": "Don't miss our exclusive discounts...", "is_unread": True},
+    ]
+
+
 @pytest.mark.asyncio
-async def test_gmail_inbox_summarization():
+async def test_gmail_inbox_summarization(sample_test_emails):
     """Verify GmailService categorizes unread emails and generates an executive summary."""
     service = GmailService()
-    summary = await service.summarize_inbox()
+    summary = await service.summarize_inbox(messages=sample_test_emails)
     
     assert summary["status"] == "success"
     assert summary["total_unread"] > 0
@@ -33,12 +43,12 @@ async def test_gmail_inbox_summarization():
 
 
 @pytest.mark.asyncio
-async def test_gmail_cleanup_two_stage_proposal():
+async def test_gmail_cleanup_two_stage_proposal(sample_test_emails):
     """Verify two-stage cleanup flow: proposal generation first, then execution with approval."""
     service = GmailService()
     
     # Stage 1: Generate Proposal
-    proposal = await service.generate_cleanup_proposal(max_age_days=30)
+    proposal = await service.generate_cleanup_proposal(messages=sample_test_emails, max_age_days=30)
     assert proposal["status"] == "proposal_ready"
     assert proposal["requires_human_approval"] is True
     assert proposal["proposal_id"].startswith("clean_")

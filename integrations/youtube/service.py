@@ -45,13 +45,32 @@ class YouTubeService(BaseIntegration):
         except Exception:
             pass
 
-        # Fallback candidates if offline or empty
+        # Direct query if browser candidates empty
         if not candidates:
-            candidates = [
-                {"title": f"{query} Official Video", "href": f"https://www.youtube.com/watch?v=tumhiho"},
-                {"title": f"{query} Live Concert 2024", "href": f"https://www.youtube.com/watch?v=live2024"},
-                {"title": f"{query} Best Songs", "href": f"https://www.youtube.com/watch?v=best2024"}
-            ]
+            try:
+                import urllib.request
+                import urllib.parse
+                import re
+                import html as html_lib
+
+                q = urllib.parse.quote(query)
+                url = f"https://www.youtube.com/results?search_query={q}"
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    page_html = resp.read().decode("utf-8", "ignore")
+                    vids = re.findall(r'"videoId":"([a-zA-Z0-9_-]{11})".*?"title":\{"runs":\[\{"text":"([^"]+)"\}', page_html)
+                    seen = set()
+                    for vid, title in vids:
+                        if vid not in seen:
+                            seen.add(vid)
+                            candidates.append({
+                                "title": html_lib.unescape(title),
+                                "href": f"https://www.youtube.com/watch?v={vid}"
+                            })
+                            if len(candidates) >= limit * 2:
+                                break
+            except Exception:
+                candidates = []
 
         ranked = self.rank_results(candidates, query)
         
@@ -131,9 +150,10 @@ class YouTubeService(BaseIntegration):
             title = await page.title() or video_url_or_title
             url = page.url or target_url
         except Exception:
+            import urllib.parse
             verified = True
             title = video_url_or_title
-            url = target_url if target_url.startswith("http") else f"https://www.youtube.com/watch?v=mock_{video_url_or_title}"
+            url = target_url if target_url.startswith("http") else f"https://www.youtube.com/results?search_query={urllib.parse.quote(video_url_or_title)}"
 
         return {
             "status": "playing",
@@ -180,17 +200,20 @@ class YouTubeService(BaseIntegration):
         try:
             page = await self.browser.get_active_page()
             v_state = await self.verifier.verify_playback_state(page)
+            import re
+            m = re.search(r"(?:v=|\/embed\/|\/watch\?v=|\/v\/|youtu\.be\/|\/shorts\/)([a-zA-Z0-9_-]{11})", page.url or "")
+            vid_id = m.group(1) if m else "active_video"
             return {
                 "status": "playing",
-                "video_id": "vid_active",
+                "video_id": vid_id,
                 "url": page.url,
                 "title": await page.title(),
                 "playback_state": v_state
             }
         except Exception:
             return {
-                "status": "playing",
-                "video_id": "vid_mock",
-                "url": "https://www.youtube.com/watch?v=mock",
-                "title": "Playing Video"
+                "status": "no_active_video",
+                "video_id": None,
+                "url": None,
+                "title": None
             }

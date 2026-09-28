@@ -29,11 +29,46 @@ class ResearchService(BaseIntegration):
         except Exception:
             raw_items = []
 
+        # If browser search returned no items, query arXiv API for literature
+        if not raw_items:
+            try:
+                import urllib.request
+                import urllib.parse
+                import xml.etree.ElementTree as ET
+                import ssl
+
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+
+                q = urllib.parse.quote(query)
+                url = f"http://export.arxiv.org/api/query?search_query=all:{q}&start=0&max_results={limit}"
+                req = urllib.request.Request(url, headers={"User-Agent": "ShivaniAI/1.0"})
+                with urllib.request.urlopen(req, timeout=5, context=ctx) as resp:
+                    xml_data = resp.read()
+                    root = ET.fromstring(xml_data)
+                    ns = {"atom": "http://www.w3.org/2005/Atom"}
+                    for entry in root.findall("atom:entry", ns):
+                        t_el = entry.find("atom:title", ns)
+                        title = t_el.text.strip().replace("\n", " ") if t_el is not None and t_el.text else "Research Article"
+                        id_el = entry.find("atom:id", ns)
+                        paper_url = id_el.text.strip() if id_el is not None and id_el.text else ""
+                        sum_el = entry.find("atom:summary", ns)
+                        snippet = sum_el.text.strip().replace("\n", " ")[:300] if sum_el is not None and sum_el.text else ""
+                        raw_items.append({
+                            "title": title,
+                            "url": paper_url,
+                            "snippet": snippet,
+                            "publisher": "arXiv.org"
+                        })
+            except Exception:
+                pass
+
         # Format sources with provenance
         sources = []
         for idx, item in enumerate(raw_items[:limit]):
             url = item.get("url", "")
-            publisher = url.split("/")[2] if "//" in url else "Web"
+            publisher = item.get("publisher") or (url.split("/")[2] if "//" in url else "Web")
             sources.append({
                 "id": f"src_{idx + 1}",
                 "title": item.get("title", f"Result {idx + 1}"),
@@ -43,20 +78,6 @@ class ResearchService(BaseIntegration):
                 "snippet": item.get("snippet", ""),
                 "relevance": round(0.95 - (idx * 0.05), 2)
             })
-
-        # Fallback if raw search returned 0 items
-        if not sources:
-            sources = [
-                {
-                    "id": "src_1",
-                    "title": f"Recent Advances in {query}",
-                    "url": f"https://arxiv.org/abs/search?query={query}",
-                    "publisher": "arXiv / Academic",
-                    "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-                    "snippet": f"Comprehensive survey on {query} methodology and performance.",
-                    "relevance": 0.95
-                }
-            ]
 
         return {
             "status": "success",
@@ -69,12 +90,15 @@ class ResearchService(BaseIntegration):
     async def open_source(self, url: str) -> Dict[str, Any]:
         """Navigates to source URL and extracts text."""
         await self.enforce_rate_limit()
-        await self.browser.navigate(url)
-        text = await self.browser.extract_text()
+        try:
+            await self.browser.navigate(url)
+            text = await self.browser.extract_text()
+        except Exception:
+            text = ""
         return {
             "url": url,
-            "text": text[:3000],
-            "chars_extracted": len(text)
+            "text": text[:3000] if text else "",
+            "chars_extracted": len(text) if text else 0
         }
 
     async def extract_from_source(self, url: str) -> Dict[str, Any]:

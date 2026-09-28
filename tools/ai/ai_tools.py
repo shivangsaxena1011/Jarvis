@@ -41,11 +41,7 @@ def get_ai_registry() -> ModelRegistry:
 def get_ai_runtime() -> LocalModelRuntime:
     global _ai_runtime
     if _ai_runtime is None:
-        ollama = OllamaLocalRuntime()
-        if ollama.is_runtime_available():
-            _ai_runtime = ollama
-        else:
-            _ai_runtime = MockLocalRuntime(available=True)
+        _ai_runtime = OllamaLocalRuntime()
     return _ai_runtime
 
 

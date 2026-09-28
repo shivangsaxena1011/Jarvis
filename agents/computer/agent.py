@@ -11,6 +11,7 @@ from typing import Any, Callable, Dict, List, Optional
 from agents.computer.observation import DesktopObservation
 from agents.computer.context import CurrentUIContext
 from agents.computer.observer import ScreenObserver
+from agents.computer.vision import VisionProvider
 from agents.computer.browser_stub import BrowserAgent
 from tools.desktop.application import ApplicationManager
 from tools.desktop.window import WindowManager
@@ -29,7 +30,8 @@ class ComputerAgent:
     def __init__(
         self,
         adapter: Optional[OperatingSystemAdapter] = None,
-        context: Optional[CurrentUIContext] = None
+        context: Optional[CurrentUIContext] = None,
+        vision_provider: Optional[VisionProvider] = None
     ):
         self.adapter = adapter or get_os_adapter()
         self.context = context or CurrentUIContext()
@@ -40,7 +42,7 @@ class ComputerAgent:
         self.input = InputController(self.adapter)
         self.screen = ScreenCapture(self.adapter)
         self.clipboard = ClipboardManager(self.adapter)
-        self.observer = ScreenObserver(screen_capture=self.screen, window_manager=self.windows)
+        self.observer = ScreenObserver(screen_capture=self.screen, window_manager=self.windows, vision_provider=vision_provider)
         self.browser = BrowserAgent(self.adapter)
         self.autonomy = ComputerAutonomyAgent(os_adapter=self.adapter)
 

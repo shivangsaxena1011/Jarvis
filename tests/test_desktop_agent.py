@@ -22,7 +22,7 @@ from core.orchestrator.state_machine import TaskState
 def agent_setup(tmp_path):
     adapter = MockOSAdapter()
     ctx = CurrentUIContext()
-    agent = ComputerAgent(adapter=adapter, context=ctx)
+    agent = ComputerAgent(adapter=adapter, context=ctx, vision_provider=MockVisionProvider())
     return adapter, ctx, agent
 
 

@@ -136,7 +136,7 @@ class ProductivityOrchestrator:
             ]
         elif "ocr" in text or "vision" in text or "image" in text:
             subtasks = [
-                "1. Scrape/gather sample test documents & images",
+                "1. Gather target documents & images",
                 "2. Benchmark OCR engines (Tesseract / Windows OCR)",
                 "3. Implement pre-processing pipeline (contrast/deskew)",
                 "4. Build structured text extraction adapter",

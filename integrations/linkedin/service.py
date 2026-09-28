@@ -53,10 +53,7 @@ class LinkedInService(BaseIntegration):
             pass
 
         if not items:
-            items = [
-                {"id": "post_1", "author": "Satya Nadella", "content": "AI agents are transforming how every developer and organization builds software."},
-                {"id": "post_2", "author": "Yann LeCun", "content": "World models and autonomous planning are essential steps beyond autoregressive token prediction."}
-            ]
+            items = []
         return items[:limit]
 
     async def search(self, query: str) -> Dict[str, Any]:

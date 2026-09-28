@@ -104,7 +104,7 @@ class GitHubService(BaseIntegration):
                 return json.loads(issues_file.read_text(encoding="utf-8"))
             except Exception:
                 pass
-        return [{"id": "issue_1", "title": "Initial setup verification", "status": "open"}]
+        return []
 
     async def create_issue(self, repo_path: str, title: str, body: str) -> Dict[str, Any]:
         """Creates an issue record."""

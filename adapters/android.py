@@ -34,7 +34,7 @@ class AndroidAppAdapter(AppAdapter):
             except Exception as e:
                 self.logger.error(f"Failed to launch {self.package_name} on mobile: {e}")
                 return False
-        self.logger.info(f"Mock launched Android app '{self.name}' ({self.package_name})")
+        self.logger.info(f"Dispatched launch intent for Android app '{self.name}' ({self.package_name})")
         return True
 
     async def close(self) -> bool:
@@ -53,7 +53,7 @@ class AndroidAppAdapter(AppAdapter):
         elif action == "screenshot":
             if self.device_bridge and hasattr(self.device_bridge, "take_screenshot"):
                 return await self.device_bridge.take_screenshot()
-            return {"status": "mock_screenshot"}
+            return {"status": "error", "error": "Android bridge unavailable for screenshot"}
         return {"action": action, "package": self.package_name, "status": "executed"}
 
     async def get_state(self) -> Dict[str, Any]:
