@@ -79,6 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupGlobalHotkeys();
   setupHUDDragging();
   setupTheme();
+  setupVoiceInteraction();
   connectWebSocket();
   fetchInitialData();
 });
@@ -447,6 +448,237 @@ function setupHUDDragging() {
   hudExpandBtn.addEventListener('click', () => {
     switchView('conversation');
     window.focus();
+  });
+}
+
+
+// ==============================================================================
+// VOICE COMMAND & AUDIO INTERACTION
+// ==============================================================================
+
+let isVoiceListening = false;
+let activeRecognition = null;
+let activeMediaStream = null;
+let activeMediaRecorder = null;
+let activeAudioChunks = [];
+
+function setupVoiceInteraction() {
+  const micButtons = [chatMicBtn, quickVoiceBtn, cmdMicBtn, hudMicBtn];
+
+  micButtons.forEach((btn) => {
+    if (!btn) return;
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleMicButtonClick(btn);
+    });
+  });
+}
+
+async function handleMicButtonClick(sourceBtn) {
+  if (isPrivacyMode) {
+    appendAssistantMessage('🛡️ Voice interaction blocked: Privacy Mode is ON. Please disable Privacy Mode to use voice commands.');
+    return;
+  }
+  if (isLocked) {
+    appendAssistantMessage('🔒 Voice interaction blocked: Assistant is locked. Please enter your PIN to unlock.');
+    showLockOverlay();
+    return;
+  }
+
+  if (isVoiceListening) {
+    stopVoiceListening();
+  } else {
+    await startVoiceListening(sourceBtn);
+  }
+}
+
+async function startVoiceListening(sourceBtn) {
+  isVoiceListening = true;
+  setMicButtonsRecording(true);
+  updateAssistantState('LISTENING', 'Listening to voice...');
+
+  // Ensure conversation view is visible for chat or quickVoice buttons
+  if (sourceBtn === quickVoiceBtn || sourceBtn === hudMicBtn) {
+    switchView('conversation');
+  }
+
+  // Notify server of listening state
+  fetch('/api/state/control', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'listen' }),
+  }).catch(() => {});
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (SpeechRecognition) {
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = navigator.language || 'en-US';
+
+      let finalTranscript = '';
+
+      recognition.onresult = (event) => {
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interim += event.results[i][0].transcript;
+          }
+        }
+        const text = (finalTranscript || interim).trim();
+        if (text) {
+          if (sourceBtn === cmdMicBtn || !commandModal.classList.contains('hidden')) {
+            commandBarInput.value = text;
+          } else {
+            chatInput.value = text;
+          }
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.warn('SpeechRecognition error:', event.error);
+        if (event.error === 'not-allowed') {
+          appendAssistantMessage('⚠️ Microphone access was denied. Please allow microphone permission in your browser address bar.');
+        } else if (event.error !== 'no-speech') {
+          appendAssistantMessage(`⚠️ Voice recognition issue: ${event.error}`);
+        }
+        stopVoiceListening();
+      };
+
+      recognition.onend = () => {
+        const text = (finalTranscript || chatInput.value || commandBarInput.value).trim();
+        stopVoiceListening();
+
+        if (text) {
+          if (sourceBtn === cmdMicBtn || !commandModal.classList.contains('hidden')) {
+            executeCommandBarQuery(text);
+          } else {
+            chatInput.value = text;
+            chatForm.dispatchEvent(new Event('submit'));
+          }
+        }
+      };
+
+      activeRecognition = recognition;
+      recognition.start();
+      return;
+    } catch (err) {
+      console.warn('SpeechRecognition failed to start, falling back to MediaRecorder:', err);
+    }
+  }
+
+  // Fallback: MediaRecorder stream to /api/voice/interact
+  startMediaRecorderFallback(sourceBtn);
+}
+
+function startMediaRecorderFallback(sourceBtn) {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    appendAssistantMessage('⚠️ Audio input is not supported in this browser environment.');
+    stopVoiceListening();
+    return;
+  }
+
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then((stream) => {
+      activeMediaStream = stream;
+      const recorder = new MediaRecorder(stream);
+      activeAudioChunks = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) activeAudioChunks.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        activeMediaStream = null;
+
+        const audioBlob = new Blob(activeAudioChunks, { type: 'audio/wav' });
+        if (audioBlob.size > 200) {
+          appendAssistantMessage('🎙️ Processing spoken instruction...');
+          updateAssistantState('UNDERSTANDING', 'Transcribing audio...');
+
+          try {
+            const res = await fetch('/api/voice/interact', {
+              method: 'POST',
+              body: audioBlob,
+            });
+            const data = await res.json();
+            if (res.ok) {
+              if (data.transcript) appendUserMessage(data.transcript);
+              if (data.reply) appendAssistantMessage(data.reply);
+              if (data.audio_url) {
+                const audio = new Audio(data.audio_url);
+                audio.play().catch((e) => console.log('Audio playback prevented:', e));
+              }
+            } else {
+              appendAssistantMessage(`⚠️ Voice interaction error: ${data.detail || 'Could not process audio'}`);
+            }
+          } catch (err) {
+            appendAssistantMessage(`⚠️ Network error processing voice: ${err.message}`);
+          } finally {
+            updateAssistantState('IDLE');
+          }
+        }
+      };
+
+      recorder.start();
+      activeMediaRecorder = recorder;
+    })
+    .catch((err) => {
+      console.error('Microphone access failed:', err);
+      appendAssistantMessage('⚠️ Microphone access denied. Please click the camera/mic icon in your browser address bar to allow microphone access.');
+      stopVoiceListening();
+    });
+}
+
+function stopVoiceListening() {
+  isVoiceListening = false;
+  setMicButtonsRecording(false);
+
+  if (activeRecognition) {
+    try {
+      activeRecognition.stop();
+    } catch (e) {}
+    activeRecognition = null;
+  }
+
+  if (activeMediaRecorder && activeMediaRecorder.state !== 'inactive') {
+    try {
+      activeMediaRecorder.stop();
+    } catch (e) {}
+    activeMediaRecorder = null;
+  }
+
+  if (activeMediaStream) {
+    activeMediaStream.getTracks().forEach((track) => track.stop());
+    activeMediaStream = null;
+  }
+
+  fetch('/api/state/control', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'stop_speaking' }),
+  }).catch(() => {});
+
+  updateAssistantState('IDLE');
+}
+
+function setMicButtonsRecording(recording) {
+  const micButtons = [chatMicBtn, quickVoiceBtn, cmdMicBtn, hudMicBtn];
+  micButtons.forEach((btn) => {
+    if (!btn) return;
+    if (recording) {
+      btn.classList.add('recording');
+      btn.setAttribute('title', 'Listening... Click to stop');
+    } else {
+      btn.classList.remove('recording');
+      btn.setAttribute('title', 'Click to speak');
+    }
   });
 }
 
