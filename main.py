@@ -81,6 +81,7 @@ def main():
     parser.add_argument("--port", type=int, default=None, help="Port to listen on")
     parser.add_argument("--task", type=str, default=None, help="Execute a single task and exit")
     parser.add_argument("--dry-run", action="store_true", help="Validate setup, configuration, tools, and exit")
+    parser.add_argument("--open-browser", action="store_true", help="Automatically open browser dashboard upon startup")
     args = parser.parse_args()
 
     settings = get_settings()
@@ -102,6 +103,17 @@ def main():
     print_banner(settings)
     console.print(f"[bold green]Starting SHIVANI Desktop Server on http://{host}:{port}[/bold green]")
     
+    if args.open_browser:
+        import threading
+        import time
+        import webbrowser
+
+        def _launch_browser():
+            time.sleep(1.2)
+            webbrowser.open(f"http://{host}:{port}")
+
+        threading.Thread(target=_launch_browser, daemon=True).start()
+
     uvicorn.run("apps.desktop.server:app", host=host, port=port, reload=False, log_level="info")
 
 
