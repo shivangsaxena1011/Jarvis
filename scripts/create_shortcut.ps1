@@ -9,7 +9,7 @@ $LocalDesktop = "$env:USERPROFILE\Desktop"
 if ((Test-Path $LocalDesktop) -and ($LocalDesktop -ne $OneDriveDesktop)) { $Targets += $LocalDesktop }
 
 $ProjectDir = Split-Path -Parent $PSScriptRoot
-if (-not $ProjectDir) { $ProjectDir = "C:\Users\Project\Jarvis" }
+if (-not $ProjectDir) { $ProjectDir = (Get-Location).Path }
 $Targets += $ProjectDir
 
 foreach ($Dir in $Targets) {

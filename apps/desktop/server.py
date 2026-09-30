@@ -73,7 +73,7 @@ class AssistantStateManager:
         self.state: AssistantState = AssistantState.IDLE
         self.privacy_mode: bool = False
         self.locked: bool = False
-        self._lock_code: str = "1234"
+        self._lock_code: str = os.environ.get("SHIVANI_LOCK_PIN", "")
         self.current_agent: Optional[str] = None
         self.current_step: Optional[str] = None
         self.current_task_id: Optional[str] = None
@@ -109,11 +109,21 @@ class AssistantStateManager:
         self.state = AssistantState.LOCKED
 
     def unlock(self, code: str) -> bool:
-        if code == self._lock_code:
+        if not self._lock_code:
+            # No PIN configured — lock cannot be unlocked until PIN is set
+            return False
+        if code and code == self._lock_code:
             self.locked = False
             self.state = AssistantState.IDLE
             return True
         return False
+
+    def set_lock_code(self, new_code: str) -> bool:
+        """Sets or changes the lock PIN. Requires a non-empty code of at least 4 chars."""
+        if not new_code or len(new_code) < 4:
+            return False
+        self._lock_code = new_code
+        return True
 
 assistant_state_mgr = AssistantStateManager()
 

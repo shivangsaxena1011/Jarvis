@@ -14,7 +14,7 @@ from security.audit.logger import AuditLogger
 from tools.registry import ToolRegistry
 from core.tasks.task import Task, TaskStatus
 from core.events.bus import EventBus, EventType, get_event_bus
-from core.orchestrator.emergency import EmergencyStop
+from core.orchestrator.emergency import EmergencyController
 from core.context.normalizer import HinglishNormalizer, SessionContext
 from core.planner.planner import TaskPlanner
 from core.executor.executor import TaskExecutor
@@ -379,7 +379,7 @@ class Orchestrator:
         self.audit = audit_logger or AuditLogger(log_path=self.settings.AUDIT_LOG_PATH)
         
         self.tools = ToolRegistry(permission_engine=self.permissions, audit_logger=self.audit)
-        self.emergency = EmergencyStop()
+        self.emergency = EmergencyController()
         self.context = SessionContext()
         self.ui_context = CurrentUIContext()
         self.computer_agent = ComputerAgent(adapter=self.os_adapter, context=self.ui_context)
@@ -404,17 +404,20 @@ class Orchestrator:
         
         # Phase 7: Android Phone Agent & Secure Device Bridge
         self.device_bridge = DeviceBridge()
-        self.mock_android_device = MockAndroidDevice()
-        self.device_bridge.register_transport_handler(self.mock_android_device.handle_command)
-        # Pre-register default mock device for seamless local/testing operation
-        default_dev = DeviceIdentity(
-            device_id="shivani-android-001",
-            device_name="Shivani Phone",
-            pairing_state="paired",
-            connection_status="connected",
-            battery_level=88
-        )
-        self.device_bridge.register_paired_device(default_dev)
+        # Only register mock device in development/testing mode
+        if not self.settings.is_production:
+            self.mock_android_device = MockAndroidDevice()
+            self.device_bridge.register_transport_handler(self.mock_android_device.handle_command)
+            default_dev = DeviceIdentity(
+                device_id="shivani-android-001",
+                device_name="Shivani Phone (Dev)",
+                pairing_state="paired",
+                connection_status="connected",
+                battery_level=88
+            )
+            self.device_bridge.register_paired_device(default_dev)
+        else:
+            self.mock_android_device = None
         self.phone_agent = PhoneAgent(bridge=self.device_bridge)
 
         # Phase 18: Cross-Device Mesh & Ambient Intelligence Orchestrator
@@ -509,7 +512,7 @@ class Orchestrator:
                 description="Controls Windows desktop applications, windows, and input",
                 capabilities=["desktop", "window", "input", "clipboard"],
                 keywords=["open", "close", "window", "click", "type", "mouse"],
-                risk_tier="SAFE",
+                risk_tier="SENSITIVE",
             ),
             instance=self.computer_agent,
         )
@@ -519,7 +522,7 @@ class Orchestrator:
                 description="Controls web browsers, search, tabs, and web extraction",
                 capabilities=["web", "browser", "youtube", "linkedin", "gmail"],
                 keywords=["browser", "chrome", "youtube", "website", "search"],
-                risk_tier="SAFE",
+                risk_tier="SENSITIVE",
             ),
             instance=self.browser_agent,
         )
@@ -569,7 +572,7 @@ class Orchestrator:
                 description="Controls paired Android phone via secure device bridge",
                 capabilities=["android", "phone", "mobile", "notifications"],
                 keywords=["phone", "mobile", "android", "insta"],
-                risk_tier="SAFE",
+                risk_tier="SENSITIVE",
             ),
             instance=self.phone_agent,
         )
@@ -589,7 +592,7 @@ class Orchestrator:
                 description="Operates Windows desktop via closed-loop visual and semantic autonomy",
                 capabilities=["computer_autonomy", "gui_reasoning", "desktop_control", "uia"],
                 keywords=["observe desktop", "click button", "organize files", "run in excel", "fix in vscode"],
-                risk_tier="SAFE",
+                risk_tier="CRITICAL",
             ),
             instance=self.computer_autonomy,
         )
@@ -828,7 +831,10 @@ class Orchestrator:
 
     async def submit_task(self, query: str) -> Task:
         if self.emergency.is_stopped:
-            self.emergency.reset()
+            raise RuntimeError(
+                "Emergency stop is ACTIVE. Cannot accept new tasks. "
+                "Use the resume endpoint or 'Shivani resume' voice command to clear."
+            )
 
         task = Task(user_request=query)
         self._tasks[task.id] = task
@@ -1084,10 +1090,10 @@ class Orchestrator:
         return {
             "status": "healthy" if overall_healthy else "degraded",
             "components": {
-                "runtime": "healthy",
+                "runtime": "healthy" if not self.emergency.is_stopped else "stopped",
                 "llm": "healthy" if llm_health.get("healthy") else f"unhealthy ({llm_health.get('error', 'unknown')})",
                 "tools": "healthy" if tools_count > 0 else "empty",
-                "event_bus": "healthy"
+                "event_bus": "healthy" if self.events is not None else "missing"
             },
             "details": {
                 "registered_tools": tools_count,

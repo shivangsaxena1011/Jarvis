@@ -33,6 +33,7 @@ class EdgeTTSProvider(TTSProvider):
         self._active_proc: Optional[subprocess.Popen] = None
         self._is_speaking = False
         self._interrupted = False
+        self._speak_lock = asyncio.Lock()
 
     def set_voice(self, voice_name: str) -> None:
         self.voice = voice_name
@@ -59,37 +60,38 @@ class EdgeTTSProvider(TTSProvider):
         if not text.strip():
             return AudioResult(text="")
 
-        self._interrupted = False
-        file_id = f"speech_{uuid.uuid4().hex[:8]}.mp3"
-        dest_path = self.output_dir / file_id
-        start_time = time.perf_counter()
+        async with self._speak_lock:
+            self._interrupted = False
+            file_id = f"speech_{uuid.uuid4().hex[:8]}.mp3"
+            dest_path = self.output_dir / file_id
+            start_time = time.perf_counter()
 
-        try:
-            import edge_tts
-            communicate = edge_tts.Communicate(text, self.voice, rate=self.rate)
-            await communicate.save(str(dest_path))
+            try:
+                import edge_tts
+                communicate = edge_tts.Communicate(text, self.voice, rate=self.rate)
+                await communicate.save(str(dest_path))
 
-            with open(dest_path, "rb") as f:
-                audio_bytes = f.read()
+                with open(dest_path, "rb") as f:
+                    audio_bytes = f.read()
 
-            elapsed = time.perf_counter() - start_time
+                elapsed = time.perf_counter() - start_time
 
-            # Play audio if requested and not interrupted
-            if play_audio and not self._interrupted:
-                self._is_speaking = True
-                await self._play_audio_file(dest_path)
+                # Play audio if requested and not interrupted
+                if play_audio and not self._interrupted:
+                    self._is_speaking = True
+                    await self._play_audio_file(dest_path)
+                    self._is_speaking = False
+
+                return AudioResult(
+                    text=text,
+                    audio_path=str(dest_path.resolve()),
+                    audio_bytes=audio_bytes,
+                    duration_seconds=round(elapsed, 2),
+                    interrupted=self._interrupted
+                )
+            except Exception as e:
                 self._is_speaking = False
-
-            return AudioResult(
-                text=text,
-                audio_path=str(dest_path.resolve()),
-                audio_bytes=audio_bytes,
-                duration_seconds=round(elapsed, 2),
-                interrupted=self._interrupted
-            )
-        except Exception as e:
-            self._is_speaking = False
-            raise ProviderError(f"Edge TTS synthesis failed: {e}")
+                raise ProviderError(f"Edge TTS synthesis failed: {e}")
 
     async def _play_audio_file(self, file_path: Path) -> None:
         """Plays audio in an interruptible background process."""

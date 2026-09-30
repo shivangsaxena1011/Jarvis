@@ -113,11 +113,12 @@ class ToolRegistry:
         METRICS.increment("tool.calls", tags={"tool": name})
 
         timeout_sec = timeout_override or tool.timeout
-        attempts = max(1, tool.retry_policy)
+        # Only retry idempotent tools; side-effecting tools get exactly 1 attempt
+        max_attempts = max(1, tool.retry_policy) if tool.is_idempotent else 1
         last_error = None
         start_time = time.perf_counter()
 
-        for attempt in range(1, attempts + 1):
+        for attempt in range(1, max_attempts + 1):
             try:
                 raw_data = await asyncio.wait_for(tool.run(**validated_args), timeout=timeout_sec)
                 

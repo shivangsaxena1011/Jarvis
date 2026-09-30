@@ -122,7 +122,10 @@ class CommandValidator:
         try:
             resolved_base = base_dir.resolve()
             resolved_target = target_path.resolve()
-            if not str(resolved_target).startswith(str(resolved_base)):
+            # Use relative_to() for correct boundary check (not string prefix)
+            try:
+                resolved_target.relative_to(resolved_base)
+            except ValueError:
                 return False, f"Path traversal detected: {target_path} escapes workspace {base_dir}"
             return True, ""
         except Exception as e:

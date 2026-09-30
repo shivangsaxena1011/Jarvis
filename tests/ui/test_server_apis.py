@@ -27,6 +27,7 @@ async def test_server_status_and_health():
 
 @pytest.mark.asyncio
 async def test_assistant_state_control_privacy_and_lock():
+    assistant_state_mgr.set_lock_code("1234")
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # 1. Privacy toggle
@@ -60,6 +61,7 @@ async def test_assistant_state_control_privacy_and_lock():
 
 @pytest.mark.asyncio
 async def test_conversation_message_and_tasks():
+    assistant_state_mgr.locked = False
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Submit conversation message

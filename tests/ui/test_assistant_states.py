@@ -47,6 +47,7 @@ def test_lock_and_unlock_security():
     mgr = AssistantStateManager()
     assert mgr.locked is False
 
+    mgr.set_lock_code("1234")
     mgr.lock()
     assert mgr.locked is True
     assert mgr.state == AssistantState.LOCKED

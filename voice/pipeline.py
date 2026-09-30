@@ -71,8 +71,19 @@ class VoicePipeline:
                     "message": "No speech detected in audio."
                 }
 
-            # Check for Interruption command ("Shivani stop")
-            if "stop" in raw_text.lower():
+            # Check for Interruption command (explicit stop patterns only)
+            import re
+            stop_patterns = [
+                r"\bshivani\s+stop\b",
+                r"\bstop\s+(?:everything|all|it|now|karo)\b",
+                r"\bruk\s*(?:jao|ja)\b",
+                r"\bsab\s+band\s+karo\b",
+                r"\bemergency\s+stop\b",
+                r"^stop$",
+            ]
+            text_lower = raw_text.lower().strip()
+            is_stop_command = any(re.search(p, text_lower) for p in stop_patterns)
+            if is_stop_command:
                 self.interrupt()
                 return {
                     "success": True,

@@ -45,3 +45,7 @@ class LLMProvider(ABC):
     ) -> TaskPlan:
         """Generates a structured multi-step task execution plan."""
         pass
+
+    async def health_check(self) -> Dict[str, Any]:
+        """Perform a low-overhead health check. Override in real providers."""
+        return {"healthy": True, "provider": "unknown"}

@@ -26,6 +26,7 @@ class BaseTool(ABC):
     permission_level: RiskLevel = RiskLevel.SAFE
     timeout: float = 30.0
     retry_policy: int = 1
+    is_idempotent: bool = True  # Override to False for non-idempotent tools (send_email, delete, etc.)
     requires_confirmation: bool = False
     args_schema: Optional[Type[BaseModel]] = None
     output_schema: Optional[Type[BaseModel]] = None
