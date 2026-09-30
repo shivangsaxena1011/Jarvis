@@ -16,6 +16,13 @@ from security.permissions.models import RiskLevel
 def anyio_backend():
     return "asyncio"
 
+@pytest.fixture(autouse=True)
+def reset_state():
+    if orchestrator.emergency.is_stopped:
+        orchestrator.emergency.resume()
+    assistant_state_mgr.locked = False
+    assistant_state_mgr.set_state(AssistantState.IDLE)
+
 
 # TEST 1: "Shivani, open Chrome."
 @pytest.mark.asyncio

@@ -61,6 +61,9 @@ async def test_assistant_state_control_privacy_and_lock():
 
 @pytest.mark.asyncio
 async def test_conversation_message_and_tasks():
+    from apps.desktop.server import orchestrator
+    if orchestrator.emergency.is_stopped:
+        orchestrator.emergency.resume()
     assistant_state_mgr.locked = False
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:

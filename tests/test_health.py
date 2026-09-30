@@ -4,9 +4,16 @@ Unit tests for SHIVANI Health System & Endpoints.
 
 import pytest
 from httpx import AsyncClient, ASGITransport
-from apps.desktop.server import app
+from apps.desktop.server import app, orchestrator
 
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
 
+@pytest.fixture(autouse=True)
+def reset_state():
+    if orchestrator.emergency.is_stopped:
+        orchestrator.emergency.resume()
 @pytest.mark.asyncio
 async def test_health_endpoint():
     transport = ASGITransport(app=app)
