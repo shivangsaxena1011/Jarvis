@@ -559,7 +559,7 @@ async function startVoiceListening(sourceBtn) {
             executeCommandBarQuery(text);
           } else {
             chatInput.value = text;
-            chatForm.dispatchEvent(new Event('submit'));
+            chatForm.requestSubmit();
           }
         }
       };
@@ -609,6 +609,9 @@ function startMediaRecorderFallback(sourceBtn) {
             });
             const data = await res.json();
             if (res.ok) {
+              if (data.status === 'empty' || data.skipped) {
+                appendAssistantMessage('⚠️ No speech was detected or voice is disabled.');
+              }
               if (data.transcript) appendUserMessage(data.transcript);
               if (data.reply) appendAssistantMessage(data.reply);
               if (data.audio_url) {
