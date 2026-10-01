@@ -42,9 +42,9 @@ class ResearchService(BaseIntegration):
                 ctx.verify_mode = ssl.CERT_NONE
 
                 q = urllib.parse.quote(query)
-                url = f"http://export.arxiv.org/api/query?search_query=all:{q}&start=0&max_results={limit}"
+                url = f"https://export.arxiv.org/api/query?search_query=all:{q}&start=0&max_results={limit}"
                 req = urllib.request.Request(url, headers={"User-Agent": "ShivaniAI/1.0"})
-                with urllib.request.urlopen(req, timeout=5, context=ctx) as resp:
+                with urllib.request.urlopen(req, timeout=15, context=ctx) as resp:
                     xml_data = resp.read()
                     root = ET.fromstring(xml_data)
                     ns = {"atom": "http://www.w3.org/2005/Atom"}

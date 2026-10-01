@@ -53,6 +53,8 @@ const chatForm = document.getElementById('chatForm');
 const chatInput = document.getElementById('chatInput');
 const chatMicBtn = document.getElementById('chatMicBtn');
 const screenContextToggle = document.getElementById('screenContextToggle');
+const fileAttachBtn = document.getElementById('fileAttachBtn');
+const hiddenFileInput = document.getElementById('hiddenFileInput');
 
 const footToolCount = document.getElementById('footToolCount');
 const footHealthStatus = document.getElementById('footHealthStatus');
@@ -306,7 +308,7 @@ function appendTaskMessage(taskId, task) {
 
 window.handleChipClick = function(text) {
   chatInput.value = text;
-  chatForm.dispatchEvent(new Event('submit'));
+  chatForm.requestSubmit();
 };
 
 window.inspectTask = function(taskId) {
@@ -364,6 +366,25 @@ function setupGlobalHotkeys() {
     currentScreenIncluded = !currentScreenIncluded;
     screenContextToggle.classList.toggle('active', currentScreenIncluded);
   });
+
+  if (fileAttachBtn && hiddenFileInput) {
+    fileAttachBtn.addEventListener('click', () => {
+      hiddenFileInput.click();
+    });
+
+    hiddenFileInput.addEventListener('change', () => {
+      if (hiddenFileInput.files && hiddenFileInput.files.length > 0) {
+        const file = hiddenFileInput.files[0];
+        const attachedTag = `[File: ${file.name}]`;
+        if (chatInput.value.trim()) {
+          chatInput.value = `${chatInput.value.trim()} ${attachedTag}`;
+        } else {
+          chatInput.value = attachedTag;
+        }
+        chatInput.focus();
+      }
+    });
+  }
 
   // Suggestion chips in command bar
   document.querySelectorAll('.suggestion-chip').forEach(chip => {
@@ -1127,11 +1148,63 @@ const artifactModal = document.getElementById('artifactModal');
 const artifactModalTitle = document.getElementById('artifactModalTitle');
 const artifactModalBody = document.getElementById('artifactModalBody');
 const artifactModalClose = document.getElementById('artifactModalClose');
+const artifactCopyBtn = document.getElementById('artifactCopyBtn');
+const artifactDownloadBtn = document.getElementById('artifactDownloadBtn');
+
+let currentArtifactPreviewText = '';
+let currentArtifactFileName = '';
 
 artifactModalClose.addEventListener('click', closeArtifactModal);
 
 function closeArtifactModal() {
   artifactModal.classList.add('hidden');
+}
+
+if (artifactCopyBtn) {
+  artifactCopyBtn.addEventListener('click', async () => {
+    const textToCopy = currentArtifactPreviewText || artifactModalBody.innerText || artifactModalBody.textContent || '';
+    if (!textToCopy) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(textToCopy);
+      } else {
+        const tempTextArea = document.createElement('textarea');
+        tempTextArea.value = textToCopy;
+        document.body.appendChild(tempTextArea);
+        tempTextArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempTextArea);
+      }
+      const originalText = artifactCopyBtn.textContent;
+      artifactCopyBtn.textContent = '✓ Copied!';
+      setTimeout(() => {
+        artifactCopyBtn.textContent = originalText;
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy artifact content:', err);
+    }
+  });
+}
+
+if (artifactDownloadBtn) {
+  artifactDownloadBtn.addEventListener('click', () => {
+    const textToDownload = currentArtifactPreviewText || artifactModalBody.innerText || artifactModalBody.textContent || '';
+    if (!textToDownload) return;
+    let filename = currentArtifactFileName || artifactModalTitle.textContent || 'artifact.txt';
+    filename = filename.trim();
+    if (!filename.includes('.')) {
+      filename += '.txt';
+    }
+    const blob = new Blob([textToDownload], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.href = url;
+    downloadAnchor.download = filename;
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    document.body.removeChild(downloadAnchor);
+    URL.revokeObjectURL(url);
+  });
 }
 
 async function refreshArtifactsList() {
@@ -1163,11 +1236,17 @@ async function refreshArtifactsList() {
 window.previewArtifact = async function(id) {
   artifactModal.classList.remove('hidden');
   artifactModalBody.innerHTML = '<div class="empty-state">Loading artifact preview...</div>';
+  currentArtifactPreviewText = '';
+  currentArtifactFileName = '';
   try {
     const res = await fetch(`/api/artifacts/${id}`);
     const data = await res.json();
-    artifactModalTitle.textContent = data.metadata.name || 'Artifact Preview';
-    artifactModalBody.innerHTML = `<pre style="white-space: pre-wrap; font-family: var(--font-mono);">${escapeHtml(data.preview || JSON.stringify(data.metadata, null, 2))}</pre>`;
+    const name = (data.metadata && data.metadata.name) || data.name || 'Artifact Preview';
+    artifactModalTitle.textContent = name;
+    currentArtifactFileName = name;
+    const content = data.preview || (data.metadata ? JSON.stringify(data.metadata, null, 2) : JSON.stringify(data, null, 2));
+    currentArtifactPreviewText = content;
+    artifactModalBody.innerHTML = `<pre style="white-space: pre-wrap; font-family: var(--font-mono);">${escapeHtml(content)}</pre>`;
   } catch (err) {
     artifactModalBody.innerHTML = `<div class="empty-state">Error loading preview: ${err.message}</div>`;
   }

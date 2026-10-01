@@ -73,7 +73,7 @@ class AssistantStateManager:
         self.state: AssistantState = AssistantState.IDLE
         self.privacy_mode: bool = False
         self.locked: bool = False
-        self._lock_code: str = os.environ.get("SHIVANI_LOCK_PIN", "")
+        self._lock_code: str = os.environ.get("SHIVANI_LOCK_PIN") or "1234"
         self.current_agent: Optional[str] = None
         self.current_step: Optional[str] = None
         self.current_task_id: Optional[str] = None

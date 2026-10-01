@@ -4,8 +4,10 @@ Verifies bug detection, automated fixing, syntax testing, git diff generation,
 and prevention of silent commits or pushes without user authorization.
 """
 
+import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import pytest
 
@@ -41,9 +43,12 @@ def test_add():
         subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=str(repo_dir), check=True)
 
         # 3. Verify test currently fails due to bug
+        test_env = os.environ.copy()
+        test_env["PYTHONDONTWRITEBYTECODE"] = "1"
         res_fail = subprocess.run(
-            ["python", "-m", "pytest", "test_calculator.py"],
+            [sys.executable, "-m", "pytest", "test_calculator.py", "-p", "no:cacheprovider"],
             cwd=str(repo_dir),
+            env=test_env,
             capture_output=True
         )
         assert res_fail.returncode != 0
@@ -63,8 +68,9 @@ def test_add():
 
         # 6. Verify tests now pass
         res_pass = subprocess.run(
-            ["python", "-m", "pytest", "test_calculator.py"],
+            [sys.executable, "-m", "pytest", "test_calculator.py", "-p", "no:cacheprovider"],
             cwd=str(repo_dir),
+            env=test_env,
             capture_output=True
         )
         assert res_pass.returncode == 0
